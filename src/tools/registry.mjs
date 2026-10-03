@@ -177,20 +177,23 @@ export async function dispatchToolCall(toolName, args = {}, context = {}) {
       return await viewFile({
         filePath: args.filePath,
         startLine: args.startLine,
-        endLine: args.endLine
+        endLine: args.endLine,
+        cwd
       });
     case 'write_file':
       return await writeFile({
         filePath: args.filePath,
         content: args.content,
-        overwrite: args.overwrite !== false
+        overwrite: args.overwrite !== false,
+        cwd
       });
     case 'replace_file_content':
       return await replaceFileContent({
         filePath: args.filePath,
         targetContent: args.targetContent,
         replacementContent: args.replacementContent,
-        allowMultiple: Boolean(args.allowMultiple)
+        allowMultiple: Boolean(args.allowMultiple),
+        cwd
       });
     case 'grep':
       return await grepFiles({

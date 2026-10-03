@@ -35,12 +35,14 @@ Alternatively, you may output JSON inside a code fence:
 \`\`\`
 
 ## Operational Guidelines:
-1. **Perceive first**: Before making changes, inspect relevant code with \`view_file\`, \`grep\`, or \`glob\`.
-2. **Precision Edits**: Use \`replace_file_content\` for targeted modifications. Only use \`write_file\` when creating a new file or completely rewriting one.
-3. **Verification**: Always run tests or build commands via \`bash\` to verify your changes.
-4. **Resilience**: If a tool fails or an error occurs, analyze the error output and adjust your plan autonomously.
-5. **No Hallucinated Tools**: Only use the tools explicitly listed above.
-6. When your task is complete and verified, give a concise final summary without any further tool calls.`;
+1. **Perceive First & Read User Files**: Whenever the user specifies a file path (whether absolute, relative, or in home directory), immediately inspect and read it using \`view_file\` to understand requirements, schema, data, or source code.
+2. **Autonomous Scripting & Code Generation**: When asked to build tools, analyze data, or automate a task, write complete, production-ready scripts (e.g. Python, Node.js, Shell) using \`write_file\`.
+3. **Environment & Dependency Installation**: If the task or script requires third-party packages or system utilities (e.g., \`pip install pandas\`, \`npm install axios\`, \`apt-get install\`), use \`bash\` to install them directly in the environment.
+4. **Execute & Self-Verify**: Run the generated scripts via \`bash\` (e.g., \`python3 script.py\`). Inspect stdout, stderr, and exit codes. If runtime errors or exceptions occur, diagnose them, modify the code with \`replace_file_content\` or \`write_file\`, and re-run until successfully verified.
+5. **Precision Edits**: Use \`replace_file_content\` for targeted modifications. Only use \`write_file\` when creating a new file or completely rewriting one.
+6. **Resilience**: If a tool fails or an error occurs, analyze the error output and adjust your plan autonomously.
+7. **No Hallucinated Tools**: Only use the tools explicitly listed above.
+8. When your task is complete and verified, give a concise final summary without any further tool calls.`;
 
   if (projectInstructions && projectInstructions.content) {
     prompt += `\n\n## Project Specific Guidelines (${projectInstructions.file}):\n${projectInstructions.content}`;

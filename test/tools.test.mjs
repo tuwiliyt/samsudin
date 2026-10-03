@@ -81,3 +81,43 @@ test('Tools - grep and glob', async () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('Tools - Path resolution and Python script generation/execution workflow', async () => {
+  const { resolveWorkspacePath } = await import('../src/utils/path-resolver.mjs');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'samsudin-pyflow-'));
+
+  try {
+    // 1. Path resolution checks
+    assert.equal(resolveWorkspacePath('/tmp/test.csv'), '/tmp/test.csv');
+    assert.equal(resolveWorkspacePath('relative/data.json', tmpDir), path.resolve(tmpDir, 'relative/data.json'));
+    assert.ok(resolveWorkspacePath('~/test.txt').startsWith(os.homedir()));
+    assert.equal(resolveWorkspacePath(' "quoted/path.txt" ', tmpDir), path.resolve(tmpDir, 'quoted/path.txt'));
+
+    // 2. User provides a data file at a specific path
+    const dataFilePath = path.join(tmpDir, 'dataset.json');
+    fs.writeFileSync(dataFilePath, JSON.stringify({ numbers: [10, 20, 30, 40] }));
+
+    // 3. Samsudin reads the user file using viewFile (supports relative or absolute)
+    const viewRes = await viewFile({ filePath: dataFilePath, cwd: tmpDir });
+    assert.ok(viewRes.content.includes('10,20,30,40'));
+
+    // 4. Samsudin writes a Python script to process the user file
+    const pyScriptPath = path.join(tmpDir, 'calc_average.py');
+    const pyCode = `import json
+with open('${dataFilePath}', 'r') as f:
+    data = json.load(f)
+avg = sum(data['numbers']) / len(data['numbers'])
+print(f"AVERAGE={avg}")
+`;
+    await writeFile({ filePath: pyScriptPath, content: pyCode, cwd: tmpDir });
+    assert.ok(fs.existsSync(pyScriptPath));
+
+    // 5. Samsudin runs the Python script via bash
+    const bashRes = await executeBash({ command: `python3 ${pyScriptPath}`, cwd: tmpDir });
+    assert.equal(bashRes.exitCode, 0);
+    assert.ok(bashRes.stdout.includes('AVERAGE=25.0'));
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+

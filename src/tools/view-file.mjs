@@ -1,15 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { resolveWorkspacePath } from '../utils/path-resolver.mjs';
 
 /**
  * View contents of a file with line numbers and optional line slice.
  */
-export async function viewFile({ filePath, startLine = 1, endLine = null, maxLines = 800 }) {
+export async function viewFile({ filePath, startLine = 1, endLine = null, maxLines = 800, cwd = process.cwd() }) {
   if (!filePath || typeof filePath !== 'string') {
     throw new Error('filePath must be provided.');
   }
 
-  const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
+  const resolvedPath = resolveWorkspacePath(filePath, cwd);
   if (!fs.existsSync(resolvedPath)) {
     throw new Error(`File not found: ${filePath}`);
   }

@@ -1,15 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { resolveWorkspacePath } from '../utils/path-resolver.mjs';
 
 /**
  * Write or overwrite a file. Automatically creates parent directories.
  */
-export async function writeFile({ filePath, content = '', overwrite = true }) {
+export async function writeFile({ filePath, content = '', overwrite = true, cwd = process.cwd() }) {
   if (!filePath || typeof filePath !== 'string') {
     throw new Error('filePath must be provided.');
   }
 
-  const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
+  const resolvedPath = resolveWorkspacePath(filePath, cwd);
   const exists = fs.existsSync(resolvedPath);
 
   if (exists && !overwrite) {

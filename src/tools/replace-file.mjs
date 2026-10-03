@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { resolveWorkspacePath } from '../utils/path-resolver.mjs';
 
 /**
  * Replace a specific block of text in a file.
  */
-export async function replaceFileContent({ filePath, targetContent, replacementContent, allowMultiple = false }) {
+export async function replaceFileContent({ filePath, targetContent, replacementContent, allowMultiple = false, cwd = process.cwd() }) {
   if (!filePath || typeof filePath !== 'string') {
     throw new Error('filePath must be provided.');
   }
@@ -15,7 +16,7 @@ export async function replaceFileContent({ filePath, targetContent, replacementC
     throw new Error('replacementContent must be specified.');
   }
 
-  const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
+  const resolvedPath = resolveWorkspacePath(filePath, cwd);
   if (!fs.existsSync(resolvedPath)) {
     throw new Error(`File not found: ${filePath}`);
   }
