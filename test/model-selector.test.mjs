@@ -149,3 +149,42 @@ test('promptModelInteractive - handles Escape cancellation', async () => {
   const chosen = await selectPromise;
   assert.equal(chosen, null);
 });
+
+test('promptModelInteractive - handles Up and Down arrow navigation', async () => {
+  const mockStdin = new EventEmitter();
+  mockStdin.isTTY = true;
+  mockStdin.setRawMode = () => {};
+  mockStdin.resume = () => {};
+
+  const mockStdout = { write: () => {} };
+
+  const models = [
+    { id: 'intern-s1', isConfigured: true, isActiveModel: true, providerName: 'InternLM' },
+    { id: 'k2', isConfigured: true, isActiveModel: false, providerName: 'Kimi' },
+    { id: 'deepseek-reasoner', isConfigured: false, isActiveModel: false, providerName: 'DeepSeek' }
+  ];
+
+  const selectPromise = promptModelInteractive({
+    models,
+    currentModel: 'intern-s1',
+    stdin: mockStdin,
+    stdout: mockStdout
+  });
+
+  // Start at index 0 ('intern-s1')
+  // Press DOWN arrow sequence '\x1b[B'
+  mockStdin.emit('keypress', '\x1b[B', { name: 'down' });
+
+  // Press DOWN arrow again -> index 2 ('deepseek-reasoner')
+  mockStdin.emit('keypress', '\x1b[B', { name: 'down' });
+
+  // Press UP arrow -> moves back to index 1 ('k2')
+  mockStdin.emit('keypress', '\x1b[A', { name: 'up' });
+
+  // Press ENTER -> selects 'k2'
+  mockStdin.emit('keypress', '\r', { name: 'return' });
+
+  const chosen = await selectPromise;
+  assert.ok(chosen);
+  assert.equal(chosen.id, 'k2');
+});

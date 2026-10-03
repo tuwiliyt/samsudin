@@ -7,6 +7,47 @@ import { PROVIDERS_META } from './provider-snippets.mjs';
  * Modular Multi-Provider Authentication Manager for Samsudin.
  * Keeps providers isolated so users can run with just 1 provider (e.g. DeepSeek or MiniMax only).
  */
+export function checkProviderConfigured(key, auth) {
+  if (!auth || typeof auth !== 'object') return false;
+
+  const rawToken = auth.userToken || auth.token || auth.access_token || auth.accessToken || '';
+  if (typeof rawToken === 'string' && (rawToken === 'sample-deepseek-token-456' || rawToken === 'sample-minimax-token-123' || rawToken === 'dummy-key')) {
+    return false;
+  }
+
+  if (key === 'deepseek') {
+    const hasToken = Boolean(auth.userToken || auth.token);
+    const hasSessionId = Boolean(
+      auth.ds_session_id ||
+      auth.sessionId ||
+      (Array.isArray(auth.cookies) && auth.cookies.some(c => c.name === 'ds_session_id'))
+    );
+    return Boolean(hasToken && hasSessionId);
+  }
+
+  if (key === 'wenxin') {
+    return Boolean(auth.BDUSS && auth.BDUSS.trim().length > 0);
+  }
+
+  if (key === 'kimi') {
+    return Boolean(auth.access_token || auth.accessToken || auth.token);
+  }
+
+  if (key === 'internlm') {
+    return Boolean(auth.token || auth.uaaToken);
+  }
+
+  if (key === 'minimax') {
+    return Boolean(auth.token);
+  }
+
+  if (key === 'chatgpt') {
+    return Boolean(Array.isArray(auth.cookies) && auth.cookies.length > 0);
+  }
+
+  return Boolean(auth.token || auth.access_token || auth.cookies || auth.cookieHeader);
+}
+
 export class AuthManager {
   constructor(cwd = process.cwd(), { homeDir = os.homedir() } = {}) {
     this.cwd = cwd;
@@ -145,7 +186,7 @@ export class AuthManager {
 
     for (const [key, meta] of Object.entries(PROVIDERS_META)) {
       const auth = creds.providers[key];
-      const isConfigured = Boolean(auth && (auth.token || auth.access_token || auth.cookies || auth.cookieHeader));
+      const isConfigured = checkProviderConfigured(key, auth);
       const isActive = creds.activeProvider === key;
 
       result.push({

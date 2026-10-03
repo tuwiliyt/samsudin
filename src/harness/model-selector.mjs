@@ -4,7 +4,7 @@ import { PROVIDERS_META } from '../auth/provider-snippets.mjs';
 import { runProviderWizard } from '../cli/auth-cli.mjs';
 
 /**
- * Maps a model ID from the API to its underlying provider key.
+ * Maps a model ID to its underlying provider key.
  */
 export function resolveModelProvider(modelId) {
   if (!modelId || typeof modelId !== 'string') return null;
@@ -23,89 +23,81 @@ export function resolveModelProvider(modelId) {
 }
 
 /**
- * Known friendly names and descriptions for popular models
+ * Curated list of primary / flagship models across all 10 providers.
+ * Keeps the picker concise, elegant, and relevant without dumping 80+ internal variants.
  */
-export const MODEL_FRIENDLY_INFO = {
-  'intern-s1': { name: 'InternLM 2.5 (s1)', providerName: 'InternLM / OpenXLab' },
-  'intern-s2-0911-web': { name: 'Intern-S2 (397B)', providerName: 'InternLM / OpenXLab' },
-  'intern-s1-pro': { name: 'Intern-S1-Pro (1T)', providerName: 'InternLM / OpenXLab' },
-  'k2': { name: 'Kimi k2 Flagship', providerName: 'Moonshot AI' },
-  'k1.5': { name: 'Kimi k1.5', providerName: 'Moonshot AI' },
-  'k1.5-thinking': { name: 'Kimi k1.5 Thinking', providerName: 'Moonshot AI' },
-  'deepseek-reasoner': { name: 'DeepSeek R1 (Reasoner)', providerName: 'DeepSeek' },
-  'deepseek-chat': { name: 'DeepSeek V3', providerName: 'DeepSeek' },
-  'deepseek-v4-flash': { name: 'DeepSeek v4 Flash', providerName: 'DeepSeek' },
-  'deepseek-v4-pro': { name: 'DeepSeek v4 Pro', providerName: 'DeepSeek' },
-  'qwen3.7-plus': { name: 'Qwen 3.7 Plus', providerName: 'Alibaba Qwen' },
-  'qwen3.8-max': { name: 'Qwen 3.8 Max', providerName: 'Alibaba Qwen' },
-  'glm-4.5': { name: 'Zhipu GLM-4.5', providerName: 'Zhipu AI (Z.ai)' },
-  'glm-5.3-flash': { name: 'Zhipu GLM-5.3 Flash', providerName: 'Zhipu AI (Z.ai)' },
-  'minimax-m2.7': { name: 'MiniMax M2.7', providerName: 'MiniMax Agent' },
-  'MiniMax-M3': { name: 'MiniMax M3', providerName: 'MiniMax Agent' },
-  'mimo-flash': { name: 'Xiaomi MiMo Flash', providerName: 'Xiaomi AI' },
-  'hy4-preview-g': { name: 'Tencent Hunyuan 4', providerName: 'Tencent' },
-  'ERINE-5.1': { name: 'Baidu ERNIE 5.1', providerName: 'Baidu Wenxin' },
-  'gpt-4o': { name: 'ChatGPT GPT-4o', providerName: 'OpenAI' }
-};
+export const CURATED_MODELS = [
+  // InternLM (OpenXLab)
+  { id: 'intern-s1', name: 'InternLM 2.5 Pro', providerKey: 'internlm', providerName: 'InternLM / OpenXLab' },
+  { id: 'intern-s2-0911-web', name: 'Intern-S2 (397B)', providerKey: 'internlm', providerName: 'InternLM / OpenXLab' },
 
-/**
- * Default fallback list of models if API endpoint is unreachable
- */
-export const FALLBACK_MODELS = [
-  'intern-s1',
-  'k2',
-  'k1.5',
-  'deepseek-reasoner',
-  'deepseek-chat',
-  'qwen3.7-plus',
-  'glm-4.5',
-  'minimax-m2.7',
-  'mimo-flash',
-  'hy4-preview-g',
-  'ERINE-5.1',
-  'gpt-4o'
+  // Kimi Moonshot AI
+  { id: 'k2', name: 'Kimi k2 Flagship', providerKey: 'kimi', providerName: 'Moonshot AI' },
+  { id: 'k1.5', name: 'Kimi k1.5', providerKey: 'kimi', providerName: 'Moonshot AI' },
+  { id: 'k1.5-thinking', name: 'Kimi k1.5 Thinking', providerKey: 'kimi', providerName: 'Moonshot AI' },
+
+  // DeepSeek
+  { id: 'deepseek-reasoner', name: 'DeepSeek-R1 (Reasoner)', providerKey: 'deepseek', providerName: 'DeepSeek' },
+  { id: 'deepseek-chat', name: 'DeepSeek-V3', providerKey: 'deepseek', providerName: 'DeepSeek' },
+
+  // Alibaba Qwen
+  { id: 'qwen3.8-max', name: 'Qwen 3.8 Max', providerKey: 'qwen', providerName: 'Alibaba Qwen' },
+  { id: 'qwen3.7-plus', name: 'Qwen 3.7 Plus', providerKey: 'qwen', providerName: 'Alibaba Qwen' },
+
+  // Zhipu GLM
+  { id: 'glm-5.3-flash', name: 'Zhipu GLM-5.3 Flash', providerKey: 'zai', providerName: 'Zhipu AI' },
+  { id: 'glm-4.5', name: 'Zhipu GLM-4.5', providerKey: 'zai', providerName: 'Zhipu AI' },
+
+  // MiniMax
+  { id: 'minimax-m2.7', name: 'MiniMax M2.7', providerKey: 'minimax', providerName: 'MiniMax Agent' },
+  { id: 'MiniMax-M3', name: 'MiniMax M3', providerKey: 'minimax', providerName: 'MiniMax Agent' },
+
+  // Xiaomi MiMo
+  { id: 'mimo-flash', name: 'Xiaomi MiMo Flash', providerKey: 'mimo', providerName: 'Xiaomi AI' },
+
+  // Tencent Hunyuan
+  { id: 'hy4-preview-g', name: 'Tencent Hunyuan 4', providerKey: 'hunyuan', providerName: 'Tencent Hunyuan' },
+
+  // Baidu Wenxin
+  { id: 'ERINE-5.1', name: 'Baidu ERNIE 5.1', providerKey: 'wenxin', providerName: 'Baidu Wenxin' },
+
+  // OpenAI ChatGPT
+  { id: 'gpt-4o', name: 'ChatGPT GPT-4o', providerKey: 'chatgpt', providerName: 'OpenAI' }
 ];
 
 /**
- * Fetch models from API and categorize them by active/ready status first.
+ * Categorize curated models with current active model first,
+ * followed by ready-to-use models, then setup-needed models.
  */
 export async function fetchAndCategorizeModels({ apiUrl, authManager, currentModel }) {
-  let modelIds = [];
-  try {
-    const res = await fetch(`${apiUrl}/models`, { signal: AbortSignal.timeout(4000) });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.data)) {
-        modelIds = data.data.map(m => m.id);
-      }
-    }
-  } catch {}
-
-  if (modelIds.length === 0) {
-    modelIds = [...FALLBACK_MODELS];
-  }
-
   const authStatus = authManager.getStatus();
   const configuredProviders = new Set(
     authStatus.providers.filter(p => p.isConfigured).map(p => p.id)
   );
 
+  const modelPool = [...CURATED_MODELS];
+
+  // If current model is not in curated pool, include it at the top
+  if (currentModel && !modelPool.some(m => m.id === currentModel)) {
+    const provKey = resolveModelProvider(currentModel) || 'unknown';
+    const meta = PROVIDERS_META[provKey];
+    modelPool.unshift({
+      id: currentModel,
+      name: currentModel,
+      providerKey: provKey,
+      providerName: meta?.name || provKey
+    });
+  }
+
   const readyModels = [];
   const setupNeededModels = [];
 
-  for (const id of modelIds) {
-    const providerKey = resolveModelProvider(id);
-    const meta = providerKey ? PROVIDERS_META[providerKey] : null;
-    const friendly = MODEL_FRIENDLY_INFO[id] || {};
-    const providerName = friendly.providerName || meta?.name || providerKey || 'Unknown';
-    const isConfigured = providerKey ? configuredProviders.has(providerKey) : false;
-    const isActiveModel = id === currentModel;
+  for (const m of modelPool) {
+    const isConfigured = Boolean(m.providerKey && configuredProviders.has(m.providerKey));
+    const isActiveModel = m.id === currentModel;
 
     const entry = {
-      id,
-      name: friendly.name || id,
-      providerKey,
-      providerName,
+      ...m,
       isConfigured,
       isActiveModel
     };
@@ -117,13 +109,14 @@ export async function fetchAndCategorizeModels({ apiUrl, authManager, currentMod
     }
   }
 
-  // Active model stays at the very top of ready models
+  // Active model is always first in ready models
   readyModels.sort((a, b) => {
     if (a.isActiveModel) return -1;
     if (b.isActiveModel) return 1;
     return a.id.localeCompare(b.id);
   });
 
+  // Setup-needed models grouped by provider
   setupNeededModels.sort((a, b) => {
     if (a.providerKey !== b.providerKey) {
       return (a.providerKey || '').localeCompare(b.providerKey || '');
@@ -131,7 +124,6 @@ export async function fetchAndCategorizeModels({ apiUrl, authManager, currentMod
     return a.id.localeCompare(b.id);
   });
 
-  // Ready models come first!
   const allOrdered = [...readyModels, ...setupNeededModels];
 
   return {
@@ -142,7 +134,7 @@ export async function fetchAndCategorizeModels({ apiUrl, authManager, currentMod
 }
 
 /**
- * Interactive model selector using Tab / Shift-Tab / Up / Down and Enter.
+ * Interactive model selector using Up Arrow, Down Arrow, Tab, Shift-Tab, and Enter.
  */
 export async function promptModelInteractive({
   models,
@@ -154,11 +146,11 @@ export async function promptModelInteractive({
 
   // Fallback for non-TTY (tests, scripts, pipes)
   if (!stdin.isTTY) {
-    console.log(`\n${colors.bright}Available Models (Active / Configured First):${colors.reset}`);
+    console.log(`\n${colors.bright}Daftar Model AI (Model Aktif Didahulukan):${colors.reset}`);
     models.forEach((m, idx) => {
-      const activeTag = m.isActiveModel ? ` ${colors.cyan}[ACTIVE]${colors.reset}` : '';
-      const readyTag = m.isConfigured ? `${colors.green}✔ READY${colors.reset}` : `${colors.gray}○ SETUP NEEDED${colors.reset}`;
-      console.log(`  [${idx + 1}] ${m.id.padEnd(26)} ${readyTag} (${m.providerName})${activeTag}`);
+      const activeTag = m.isActiveModel ? ` ${colors.cyan}${colors.bright}[SEDANG AKTIF]${colors.reset}` : '';
+      const readyTag = m.isConfigured ? `${colors.green}✔ Akun Terhubung${colors.reset}` : `${colors.yellow}○ Perlu Setup${colors.reset}`;
+      console.log(`  [${idx + 1}] ${m.id.padEnd(24)} ${readyTag.padEnd(22)} (${m.providerName})${activeTag}`);
     });
     console.log('');
     return null;
@@ -166,7 +158,6 @@ export async function promptModelInteractive({
 
   return new Promise((resolve) => {
     let selectedIndex = 0;
-    // Start with current active model selected if present
     const activeIdx = models.findIndex(m => m.id === currentModel);
     if (activeIdx >= 0) selectedIndex = activeIdx;
 
@@ -192,7 +183,7 @@ export async function promptModelInteractive({
       const lines = [];
 
       lines.push(`${colors.cyan}${colors.bright}┌────────────────────────────────────────────────────────────────────────┐${colors.reset}`);
-      lines.push(`${colors.cyan}│${colors.reset}  ${colors.bright}Pilih Model AI (Tekan [Tab] / [↑] / [↓] untuk geser, [Enter] memilih)  ${colors.reset}${colors.cyan}│${colors.reset}`);
+      lines.push(`${colors.cyan}│${colors.reset}  ${colors.bright}PILIH MODEL AI (Gunakan [↑] / [↓] / [Tab] untuk navigasi, [Enter] pilih)${colors.reset}${colors.cyan}│${colors.reset}`);
       lines.push(`${colors.cyan}└────────────────────────────────────────────────────────────────────────┘${colors.reset}`);
 
       if (windowStart > 0) {
@@ -206,26 +197,26 @@ export async function promptModelInteractive({
 
         let statusBadge = '';
         if (m.isActiveModel) {
-          statusBadge = `${colors.green}${colors.bright}[ACTIVE]${colors.reset}`;
+          statusBadge = `${colors.green}${colors.bright}[SEDANG AKTIF]${colors.reset}`;
         } else if (m.isConfigured) {
-          statusBadge = `${colors.green}✔ READY${colors.reset}`;
+          statusBadge = `${colors.green}✔ Akun Terhubung${colors.reset}`;
         } else {
-          statusBadge = `${colors.yellow}○ SETUP NEEDED${colors.reset}`;
+          statusBadge = `${colors.yellow}○ Perlu Setup${colors.reset}`;
         }
 
         const modelLabel = isSelected
-          ? `${colors.bright}${colors.cyan}${m.id.padEnd(26)}${colors.reset}`
-          : `${m.id.padEnd(26)}`;
+          ? `${colors.bright}${colors.cyan}${m.id.padEnd(24)}${colors.reset}`
+          : `${m.id.padEnd(24)}`;
 
         const prov = `${colors.dim}(${m.providerName})${colors.reset}`;
-        lines.push(`  ${cursor} ${modelLabel} ${statusBadge.padEnd(20)} ${prov}`);
+        lines.push(`  ${cursor} ${modelLabel} ${statusBadge.padEnd(26)} ${prov}`);
       }
 
       if (windowStart + windowSize < models.length) {
         lines.push(`${colors.dim}    ▼ ... ${models.length - (windowStart + windowSize)} model lainnya di bawah ...${colors.reset}`);
       }
 
-      lines.push(`${colors.dim}  [Tab / ↓] Berikutnya  •  [Shift-Tab / ↑] Sebelumnya  •  [Enter] Pilih  •  [Esc] Batal${colors.reset}\n`);
+      lines.push(`${colors.dim}  [↑ / ↓ / Tab] Pindah Pilihan  •  [Enter] Pilih Model  •  [Esc / q] Batal${colors.reset}\n`);
 
       if (lastRenderedLines > 0) {
         stdout.write(`\x1b[${lastRenderedLines}A\x1b[0J`);
@@ -245,41 +236,41 @@ export async function promptModelInteractive({
     }
 
     function onKey(str, key) {
-      if (!key) return;
+      // Robust detection for Down arrow: key.name or escape sequences or 'j'
+      const isDown = (key && key.name === 'down') || str === '\x1b[B' || str === '\x1bOB' || str === 'j';
 
-      // Enter / Return: confirm selection
-      if (key.name === 'return' || key.name === 'enter') {
+      // Robust detection for Up arrow: key.name or escape sequences or 'k'
+      const isUp = (key && key.name === 'up') || str === '\x1b[A' || str === '\x1bOA' || str === 'k';
+
+      // Tab key
+      const isTab = (key && key.name === 'tab' && !key.shift) || str === '\t';
+      const isShiftTab = (key && key.name === 'tab' && key.shift) || str === '\x1b[Z';
+
+      // Enter key
+      const isEnter = (key && (key.name === 'return' || key.name === 'enter')) || str === '\r' || str === '\n';
+
+      // Cancel key
+      const isCancel = (key && key.name === 'escape') || (key && key.ctrl && key.name === 'c') || str === '\x1b' || str === 'q' || str === '\u0003';
+
+      if (isEnter) {
         cleanup();
         resolve(models[selectedIndex]);
         return;
       }
 
-      // Escape / Ctrl+C / q: cancel
-      if (key.name === 'escape' || (key.ctrl && key.name === 'c') || str === 'q') {
+      if (isCancel) {
         cleanup();
         resolve(null);
         return;
       }
 
-      // Tab or Down arrow: next
-      if (key.name === 'tab') {
-        if (key.shift) {
-          selectedIndex = (selectedIndex - 1 + models.length) % models.length;
-        } else {
-          selectedIndex = (selectedIndex + 1) % models.length;
-        }
-        render();
-        return;
-      }
-
-      if (key.name === 'down') {
+      if (isDown || isTab) {
         selectedIndex = (selectedIndex + 1) % models.length;
         render();
         return;
       }
 
-      // Up arrow: previous
-      if (key.name === 'up') {
+      if (isUp || isShiftTab) {
         selectedIndex = (selectedIndex - 1 + models.length) % models.length;
         render();
         return;
@@ -293,8 +284,8 @@ export async function promptModelInteractive({
 
 /**
  * Complete model selection workflow:
- * 1. Categorizes models with active/ready ones first.
- * 2. Prompts user interactively with Tab/Enter.
+ * 1. Categorizes curated models with active model and configured ones first.
+ * 2. Prompts user interactively with Arrow Keys, Tab, and Enter.
  * 3. If selected model is not configured, triggers credential wizard on the fly.
  * 4. Returns { model, switched, justConfigured }.
  */
