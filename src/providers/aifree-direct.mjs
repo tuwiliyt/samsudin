@@ -10,7 +10,7 @@ export class AiFreeProvider extends BaseProvider {
   constructor(options = {}) {
     super(options);
     this.aiFreePath = options.aiFreePath || process.env.AI_FREE_PATH || '/content/ai-free';
-    this.apiUrl = options.apiUrl || process.env.AI_FREE_API_URL || 'http://127.0.0.1:3000/v1';
+    this.apiUrl = options.apiUrl || process.env.AI_FREE_API_URL || 'http://127.0.0.1:4318/v1';
     this.httpProvider = new OpenAIProvider({
       baseUrl: this.apiUrl,
       model: this.model,

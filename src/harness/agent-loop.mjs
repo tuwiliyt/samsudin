@@ -76,6 +76,11 @@ export class AgentLoop {
 
       this.emit('generation:end', { step, fullText: assistantText });
 
+      if (assistantText.startsWith('[Error]') || assistantText.includes('API error HTTP')) {
+        this.emit('error', { step, error: assistantText.trim() });
+        throw new Error(`Model API error at step ${step}: ${assistantText.trim()}`);
+      }
+
       // Step 4: Parse tool calls
       const parsed = parseToolCallsFromText(assistantText);
       messages.push({

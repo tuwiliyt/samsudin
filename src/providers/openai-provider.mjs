@@ -6,7 +6,7 @@ import { BaseProvider } from './base-provider.mjs';
 export class OpenAIProvider extends BaseProvider {
   constructor(options = {}) {
     super(options);
-    this.baseUrl = (options.baseUrl || 'http://127.0.0.1:3000/v1').replace(/\/+$/, '');
+    this.baseUrl = (options.baseUrl || 'http://127.0.0.1:4318/v1').replace(/\/+$/, '');
     this.apiKey = options.apiKey || process.env.OPENAI_API_KEY || 'dummy-key';
     this.timeoutMs = options.timeoutMs || 120000;
   }
