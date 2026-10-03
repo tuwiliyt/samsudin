@@ -8,8 +8,8 @@ export const PROVIDERS_META = {
     name: 'DeepSeek',
     url: 'https://chat.deepseek.com',
     model: 'deepseek-chat',
-    fields: ['token'],
-    consoleSnippet: `copy(JSON.parse(localStorage.getItem('userToken') || '{}').value || localStorage.getItem('userToken') || document.cookie)`,
+    fields: ['token', 'ds_session_id'],
+    consoleSnippet: `copy(JSON.stringify({ userToken: JSON.parse(localStorage.getItem('userToken') || '{}').value || localStorage.getItem('userToken') || '', ds_session_id: (document.cookie.match(/ds_session_id=([^;]+)/) || [])[1] || '' }))`,
     instruction: 'Open https://chat.deepseek.com, login, press F12 -> Console, paste the snippet, press Enter, then paste here.'
   },
   minimax: {

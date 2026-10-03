@@ -8,9 +8,10 @@ import { PROVIDERS_META } from './provider-snippets.mjs';
  * Keeps providers isolated so users can run with just 1 provider (e.g. DeepSeek or MiniMax only).
  */
 export class AuthManager {
-  constructor(cwd = process.cwd()) {
+  constructor(cwd = process.cwd(), { homeDir = os.homedir() } = {}) {
     this.cwd = cwd;
-    this.globalDir = path.resolve(os.homedir(), '.samsudin');
+    this.homeDir = homeDir;
+    this.globalDir = path.resolve(this.homeDir, '.samsudin');
     this.credentialsFile = path.resolve(this.globalDir, 'credentials.json');
   }
 
@@ -169,12 +170,52 @@ export class AuthManager {
    */
   syncToLegacyDir(providerKey, data) {
     try {
-      const legacyDir = path.resolve(os.homedir(), `.${providerKey}-cli`);
+      const legacyDir = path.resolve(this.homeDir, `.${providerKey}-cli`);
       if (!fs.existsSync(legacyDir)) {
         fs.mkdirSync(legacyDir, { recursive: true, mode: 0o700 });
       }
       const authFile = path.resolve(legacyDir, 'auth.json');
-      fs.writeFileSync(authFile, JSON.stringify(data, null, 2), { mode: 0o600 });
+
+      let payloadToSave = data;
+      if (providerKey === 'deepseek') {
+        let userToken = data.userToken || data.token || '';
+        let dsSessionId = data.ds_session_id || data.sessionId || '';
+        let cookies = Array.isArray(data.cookies) ? [...data.cookies] : [];
+
+        // If data.raw or data.token was a JSON string, extract fields
+        const rawStr = typeof data.raw === 'string' ? data.raw : (typeof data.token === 'string' ? data.token : '');
+        if (rawStr.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(rawStr.trim());
+            if (parsed.userToken) userToken = parsed.userToken;
+            if (parsed.token && !userToken) userToken = parsed.token;
+            if (parsed.ds_session_id) dsSessionId = parsed.ds_session_id;
+            if (parsed.sessionId && !dsSessionId) dsSessionId = parsed.sessionId;
+            if (Array.isArray(parsed.cookies)) cookies = parsed.cookies;
+          } catch {}
+        }
+
+        // If ds_session_id is in raw cookie string
+        if (!dsSessionId && typeof rawStr === 'string') {
+          const match = rawStr.match(/ds_session_id=([^;\s]+)/);
+          if (match) dsSessionId = match[1];
+        }
+
+        if (dsSessionId && !cookies.some(c => c.name === 'ds_session_id')) {
+          cookies.push({ name: 'ds_session_id', value: dsSessionId });
+        }
+
+        payloadToSave = {
+          userToken,
+          cookies,
+          profileDir: data.profileDir || '',
+          hifLeim: data.hifLeim || '',
+          hifDliq: data.hifDliq || '',
+          updatedAt: data.updatedAt || new Date().toISOString()
+        };
+      }
+
+      fs.writeFileSync(authFile, JSON.stringify(payloadToSave, null, 2), { mode: 0o600 });
     } catch {}
   }
 }

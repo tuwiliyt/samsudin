@@ -133,10 +133,18 @@ async function runProviderWizard(authManager, providerKey) {
         return;
       }
 
-      const payload = {
+      let payload = {
         token: val,
         raw: val
       };
+
+      if (val.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(val);
+          payload = { ...payload, ...parsed };
+          if (parsed.userToken && !payload.token) payload.token = parsed.userToken;
+        } catch {}
+      }
 
       authManager.setProvider(providerKey, payload);
       authManager.setActiveProvider(providerKey);

@@ -9,9 +9,7 @@ import { PROVIDERS_META } from '../src/auth/provider-snippets.mjs';
 test('AuthManager - sets single provider and maintains isolation', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'samsudin-auth-test-'));
   try {
-    const mgr = new AuthManager(tmpDir);
-    mgr.credentialsFile = path.resolve(tmpDir, 'credentials.json');
-    mgr.globalDir = tmpDir;
+    const mgr = new AuthManager(tmpDir, { homeDir: tmpDir });
 
     // Initially empty
     const init = mgr.getStatus();
@@ -27,10 +25,16 @@ test('AuthManager - sets single provider and maintains isolation', () => {
     assert.equal(ds.isConfigured, false); // Other providers remain unconfigured!
     assert.equal(afterMiniMax.activeProvider, 'minimax');
 
-    // Switch active
-    mgr.setProvider('deepseek', { token: 'sample-ds-token' });
+    // Switch active with DeepSeek userToken and ds_session_id
+    mgr.setProvider('deepseek', { userToken: 'sample-ds-token', ds_session_id: 'session-123' });
     mgr.setActiveProvider('deepseek');
     assert.equal(mgr.getStatus().activeProvider, 'deepseek');
+
+    // Verify syncToLegacyDir properly created ~/.deepseek-cli/auth.json with cookies array
+    const dsLegacyAuth = JSON.parse(fs.readFileSync(path.join(tmpDir, '.deepseek-cli', 'auth.json'), 'utf-8'));
+    assert.equal(dsLegacyAuth.userToken, 'sample-ds-token');
+    assert.ok(Array.isArray(dsLegacyAuth.cookies));
+    assert.equal(dsLegacyAuth.cookies.find(c => c.name === 'ds_session_id')?.value, 'session-123');
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -39,9 +43,7 @@ test('AuthManager - sets single provider and maintains isolation', () => {
 test('AuthManager - imports credentials from JSON file', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'samsudin-import-test-'));
   try {
-    const mgr = new AuthManager(tmpDir);
-    mgr.credentialsFile = path.resolve(tmpDir, 'credentials.json');
-    mgr.globalDir = tmpDir;
+    const mgr = new AuthManager(tmpDir, { homeDir: tmpDir });
 
     const sampleExport = path.resolve(tmpDir, 'exported.json');
     fs.writeFileSync(sampleExport, JSON.stringify({
