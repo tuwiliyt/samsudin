@@ -121,13 +121,13 @@ export class AgentLoop {
           const formattedResult = this.formatToolResult(name, result);
           messages.push({
             role: 'user',
-            content: `=== TOOL RESULT: ${name} ===\n${formattedResult}`
+            content: `=== TOOL RESULT: ${name} ===\n${formattedResult}\n\n[System Note: Continue working autonomously towards the target goal: "${userGoal}". If additional steps/tools are needed, output the next <tool_call>. Only when the entire goal is completed and verified, summarize your work without further tool calls.]`
           });
         } catch (toolErr) {
           this.emit('tool:error', { name, error: toolErr.message });
           messages.push({
             role: 'user',
-            content: `=== TOOL RESULT: ${name} ===\nStatus: Exception\nError: ${toolErr.message}`
+            content: `=== TOOL RESULT: ${name} ===\nStatus: Exception\nError: ${toolErr.message}\n\n[System Note: Inspect the error and continue autonomously working towards the goal: "${userGoal}".]`
           });
         }
       }

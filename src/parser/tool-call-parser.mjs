@@ -25,15 +25,7 @@ export function parseToolCallsFromText(text) {
       toolCalls.push(parsed);
     }
   }
-
-  if (toolCalls.length > 0) {
-    cleanText = cleanText.replace(xmlRegex, '').trim();
-    return {
-      thinking: cleanText,
-      toolCalls,
-      rawText: text
-    };
-  }
+  cleanText = cleanText.replace(xmlRegex, '').trim();
 
   // Pattern 2: Fenced code block ```tool_call ... ``` or ```json with "name"/"tool"
   const fencedRegex = /```(?:tool_call|tool|action|json)?\s*([\s\S]*?)```/gi;
@@ -45,26 +37,20 @@ export function parseToolCallsFromText(text) {
       toolCalls.push(parsed);
     }
   }
-
-  if (toolCalls.length > 0) {
-    cleanText = cleanText.replace(fencedRegex, '').trim();
-    return {
-      thinking: cleanText,
-      toolCalls,
-      rawText: text
-    };
-  }
+  cleanText = cleanText.replace(fencedRegex, '').trim();
 
   // Pattern 3: Raw JSON object inside text { "name": "...", "arguments": { ... } }
-  // Only look for explicit tool names
-  const rawObjRegex = /\{\s*"(?:tool|name)"\s*:\s*"([a-zA-Z0-9_\-]+)"[\s\S]*?\}/g;
-  let rawObjMatch;
-  while ((rawObjMatch = rawObjRegex.exec(text)) !== null) {
-    const candidate = rawObjMatch[0];
-    const parsed = tryParseJsonTool(candidate);
-    if (parsed) {
-      toolCalls.push(parsed);
-      cleanText = cleanText.replace(candidate, '').trim();
+  // Only look for explicit tool names if no tools found yet
+  if (toolCalls.length === 0) {
+    const rawObjRegex = /\{\s*"(?:tool|name)"\s*:\s*"([a-zA-Z0-9_\-]+)"[\s\S]*?\}/g;
+    let rawObjMatch;
+    while ((rawObjMatch = rawObjRegex.exec(text)) !== null) {
+      const candidate = rawObjMatch[0];
+      const parsed = tryParseJsonTool(candidate);
+      if (parsed) {
+        toolCalls.push(parsed);
+        cleanText = cleanText.replace(candidate, '').trim();
+      }
     }
   }
 
