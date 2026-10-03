@@ -4,7 +4,7 @@ import { UBUNTU_TERMINAL_SKILLS } from './ubuntu-skills.mjs';
 /**
  * Builds the comprehensive system prompt for Samsudin Agent.
  */
-export function buildSystemPrompt({ projectInstructions = null, workspaceDir = process.cwd() } = {}) {
+export function buildSystemPrompt({ projectInstructions = null, workspaceDir = process.cwd(), planMode = false } = {}) {
   const toolsDescription = TOOL_DEFINITIONS.map(tool => {
     return `- **${tool.name}**: ${tool.description}
   Parameters schema: ${JSON.stringify(tool.parameters.properties)}`;
@@ -46,6 +46,20 @@ Alternatively, you may output JSON inside a code fence:
 8. When your task is complete and verified, give a concise final summary without any further tool calls.
 
 ${UBUNTU_TERMINAL_SKILLS}`;
+
+  if (planMode) {
+    prompt += `
+
+## PLAN MODE (READ-ONLY) - ACTIVE
+You are in PLAN MODE. You may ONLY inspect: use \`view_file\`, \`grep\`, \`glob\`, \`git_status\`, \`git_diff\`, read-only \`bash\` (ls, cat, find, git status/diff/log, ps, df, ...), and \`process_manager\` (list/logs/status).
+Any attempt to write files, install packages, or run state-changing commands WILL BE REJECTED.
+Investigate thoroughly, then finish WITHOUT further tool calls by writing a concrete numbered plan containing:
+1. Files to create/modify (exact paths) and what changes in each
+2. Shell commands to run (installs, builds, tests) in order
+3. Risks / assumptions
+4. How to verify success
+The user will review and approve execution separately.`;
+  }
 
   if (projectInstructions && projectInstructions.content) {
     prompt += `\n\n## Project Specific Guidelines (${projectInstructions.file}):\n${projectInstructions.content}`;

@@ -78,8 +78,28 @@ export function createEventHandler({ verbose = false } = {}) {
         break;
 
       case 'task:complete':
-        console.log(`\n${colors.green}${colors.bright}✔ Goal Accomplished in ${data.step} iterations!${colors.reset}`);
-        console.log(`\n${colors.bright}Summary:${colors.reset}\n${data.finalAnswer}\n`);
+        if (data.mode === 'plan') {
+          console.log(`\n${colors.magenta}${colors.bright}📝 Plan ready (read-only, nothing was modified):${colors.reset}\n${data.finalAnswer}\n`);
+        } else {
+          console.log(`\n${colors.green}${colors.bright}✔ Goal Accomplished in ${data.step} iterations!${colors.reset}`);
+          console.log(`\n${colors.bright}Summary:${colors.reset}\n${data.finalAnswer}\n`);
+        }
+        break;
+
+      case 'phase:start':
+        console.log(`\n${colors.magenta}${colors.bright}═══ ${data.phase.toUpperCase()} phase${colors.reset} ${colors.dim}(model: ${data.model})${colors.reset}`);
+        break;
+
+      case 'stuck:warning':
+        console.log(`\n${colors.yellow}⚠ Loop detected:${colors.reset} ${data.reason}. Nudging the model to change approach.`);
+        break;
+
+      case 'stuck:abort':
+        console.log(`\n${colors.red}✖ Stopped:${colors.reset} agent kept looping (${data.reason}).`);
+        break;
+
+      case 'checkpoint:tracked':
+        if (verbose) console.log(`${colors.dim}⎘ checkpoint saved: ${data.file}${colors.reset}`);
         break;
 
       case 'task:max_steps_reached':

@@ -4,6 +4,10 @@ import { parseToolCallsFromText } from '../parser/tool-call-parser.mjs';
 import { dispatchToolCall } from '../tools/registry.mjs';
 import { buildSystemPrompt } from '../prompts/system.mjs';
 import { estimateTokens } from '../providers/openai-provider.mjs';
+import { StuckDetector } from './stuck-detector.mjs';
+import { resolveWorkspacePath } from '../utils/path-resolver.mjs';
+
+const FILE_MUTATING_TOOLS = new Set(['write_file', 'replace_file_content']);
 
 /**
  * Samsudin Master Agent Loop
@@ -19,31 +23,55 @@ export class AgentLoop {
     this.cwd = options.cwd || process.cwd();
     this.maxSteps = options.maxSteps || 25;
     this.compactor = options.compactor || new ContextCompactor();
-    this.permissionGate = options.permissionGate || new PermissionGate({ yolo: options.yolo });
+    this.permissionGate = options.permissionGate || new PermissionGate({ yolo: options.yolo, cwd: this.cwd });
+    this.checkpointManager = options.checkpointManager || null;
+    this.stuckDetector = options.stuckDetector || new StuckDetector();
     this.onEvent = options.onEvent || (() => {});
   }
 
   /**
    * Run the autonomous task loop.
+   * @param {string} userGoal
+   * @param {object} [opts]
+   * @param {Array}  [opts.history]     Prior conversation messages (system messages are dropped) for multi-turn REPL use.
+   * @param {string} [opts.displayGoal] Short goal text used in continuation notes (defaults to userGoal).
    */
-  async runTask(userGoal) {
+  async runTask(userGoal, opts = {}) {
     if (!userGoal || typeof userGoal !== 'string') {
       throw new Error('userGoal must be a non-empty string.');
     }
 
-    this.emit('task:start', { goal: userGoal, cwd: this.cwd });
+    const planMode = Boolean(this.permissionGate.planMode);
+    const goalLabel = opts.displayGoal || userGoal;
+
+    this.emit('task:start', { goal: goalLabel, cwd: this.cwd, mode: planMode ? 'plan' : 'act' });
 
     // Step 1: Perceive environment & project instructions
     const projectInstructions = this.compactor.loadProjectInstructions(this.cwd);
     const systemPrompt = buildSystemPrompt({
       projectInstructions,
-      workspaceDir: this.cwd
+      workspaceDir: this.cwd,
+      planMode
     });
+
+    const priorMessages = Array.isArray(opts.history)
+      ? opts.history.filter(m => m && m.role !== 'system')
+      : [];
 
     const messages = [
       { role: 'system', content: systemPrompt },
+      ...priorMessages,
       { role: 'user', content: userGoal }
     ];
+
+    // One checkpoint per user turn (lazy: only materialized if a file is actually modified)
+    if (this.checkpointManager) {
+      this.checkpointManager.begin(goalLabel);
+    }
+    this.stuckDetector.reset();
+    let stuckWarnings = 0;
+    let stopReason = 'complete';
+
 
     let step = 0;
     let finalAnswer = '';
@@ -111,7 +139,7 @@ export class AgentLoop {
       // If no tool calls, the agent has finished its task
       if (!parsed.toolCalls || parsed.toolCalls.length === 0) {
         finalAnswer = parsed.thinking || assistantText;
-        this.emit('task:complete', { step, finalAnswer });
+        this.emit('task:complete', { step, finalAnswer, mode: planMode ? 'plan' : 'act' });
         break;
       }
 
@@ -129,7 +157,18 @@ export class AgentLoop {
             role: 'user',
             content: `=== TOOL RESULT: ${name} ===\nStatus: Error\n${rejectionNotice}`
           });
+          this.stuckDetector.record({ name, args: toolArgs, observation: rejectionNotice, isError: true });
           continue;
+        }
+
+        // Snapshot file state before any file-mutating tool runs
+        if (this.checkpointManager && FILE_MUTATING_TOOLS.has(name) && toolArgs?.filePath) {
+          try {
+            const created = this.checkpointManager.trackFile(resolveWorkspacePath(toolArgs.filePath, this.cwd));
+            if (created) this.emit('checkpoint:tracked', { file: toolArgs.filePath });
+          } catch {
+            // Never let checkpointing break the agent
+          }
         }
 
         // Execute tool
@@ -141,14 +180,40 @@ export class AgentLoop {
           const formattedResult = this.formatToolResult(name, result);
           messages.push({
             role: 'user',
-            content: `=== TOOL RESULT: ${name} ===\n${formattedResult}\n\n[System Note: Continue working autonomously towards the target goal: "${userGoal}". If additional steps/tools are needed, output the next <tool_call>. Only when the entire goal is completed and verified, summarize your work without further tool calls.]`
+            content: `=== TOOL RESULT: ${name} ===\n${formattedResult}\n\n[System Note: Continue working autonomously towards the target goal: "${goalLabel}". If additional steps/tools are needed, output the next <tool_call>. Only when the entire goal is completed and verified, summarize your work without further tool calls.]`
+          });
+          this.stuckDetector.record({
+            name,
+            args: toolArgs,
+            observation: formattedResult,
+            isError: result && typeof result === 'object' && result.success === false
           });
         } catch (toolErr) {
           this.emit('tool:error', { name, error: toolErr.message });
           messages.push({
             role: 'user',
-            content: `=== TOOL RESULT: ${name} ===\nStatus: Exception\nError: ${toolErr.message}\n\n[System Note: Inspect the error and continue autonomously working towards the goal: "${userGoal}".]`
+            content: `=== TOOL RESULT: ${name} ===\nStatus: Exception\nError: ${toolErr.message}\n\n[System Note: Inspect the error and continue autonomously working towards the goal: "${goalLabel}".]`
           });
+          this.stuckDetector.record({ name, args: toolArgs, observation: toolErr.message, isError: true });
+        }
+      }
+
+      // Step 6: Stuck detection - warn once, then abort if the loop persists
+      const stuck = this.stuckDetector.check();
+      if (stuck.stuck) {
+        stuckWarnings++;
+        if (stuckWarnings === 1) {
+          this.emit('stuck:warning', { step, ...stuck });
+          messages.push({
+            role: 'user',
+            content: `[System Warning] You appear to be stuck in a loop: ${stuck.reason}. Repeating the same action will not change the outcome. Stop and re-think: re-read the relevant error/output, try a DIFFERENT approach (different command, arguments, or file), or if the goal is already complete or impossible, give a final summary without further tool calls.`
+          });
+          this.stuckDetector.reset();
+        } else {
+          this.emit('stuck:abort', { step, ...stuck });
+          stopReason = 'stuck';
+          finalAnswer = `Stopped: the agent kept looping after a warning (${stuck.reason}). Try rephrasing the goal, switching model (/model), or using /plan first.`;
+          break;
         }
       }
     }
@@ -156,10 +221,12 @@ export class AgentLoop {
     if (step >= this.maxSteps && !finalAnswer) {
       this.emit('task:max_steps_reached', { maxSteps: this.maxSteps });
       finalAnswer = 'Reached maximum iteration limit before final completion.';
+      stopReason = 'max_steps';
     }
 
     return {
-      success: true,
+      success: stopReason !== 'stuck',
+      stopReason,
       stepsTaken: step,
       finalAnswer,
       messages,

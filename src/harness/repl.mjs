@@ -3,7 +3,9 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { AgentLoop } from './agent-loop.mjs';
 import { ContextCompactor } from './context-compactor.mjs';
-import { PermissionGate } from './permissions.mjs';
+import { PermissionGate, APPROVAL_MODES } from './permissions.mjs';
+import { CheckpointManager } from './checkpoint-manager.mjs';
+import { runArchitectEditor } from './architect.mjs';
 import { SessionManager } from './session-manager.mjs';
 import { ConfigManager } from '../config/config-manager.mjs';
 import { OpenAIProvider, estimateTokens } from '../providers/openai-provider.mjs';
@@ -48,7 +50,15 @@ export class SamsudinREPL {
 
     this.sessionManager = new SessionManager(this.cwd);
     this.compactor = new ContextCompactor();
-    this.permissionGate = new PermissionGate({ yolo: this.yolo });
+    this.permissionGate = new PermissionGate({
+      yolo: this.yolo,
+      mode: options.mode || this.config.approvalMode,
+      planMode: Boolean(options.plan),
+      cwd: this.cwd
+    });
+    this.yolo = this.permissionGate.yolo;
+    this.checkpoints = new CheckpointManager(this.cwd);
+    this.architectModel = options.architectModel || this.config.architectModel || null;
 
     this.conversationHistory = [];
     this.provider = this.createProvider(this.model);
@@ -63,16 +73,24 @@ export class SamsudinREPL {
     });
   }
 
+  promptText() {
+    const tags = [];
+    if (this.permissionGate.planMode) tags.push(`${colors.magenta}plan${colors.reset}`);
+    else tags.push(`${colors.dim}${this.permissionGate.mode}${colors.reset}`);
+    if (this.architectModel) tags.push(`${colors.yellow}architect:${this.architectModel}${colors.reset}`);
+    return `${colors.cyan}${colors.bright}samsudin (${this.model})${colors.reset} [${tags.join(' ')}] > `;
+  }
+
   async start() {
     this.isRunning = true;
     console.log(`\n${colors.cyan}${colors.bright}Samsudin Interactive REPL Session Started${colors.reset}`);
-    console.log(`${colors.dim}Active Model:${colors.reset} \x1b[32m${this.model}\x1b[0m | ${colors.dim}YOLO Mode:${colors.reset} ${this.yolo ? '\x1b[33mON\x1b[0m' : 'OFF'}`);
+    console.log(`${colors.dim}Active Model:${colors.reset} \x1b[32m${this.model}\x1b[0m | ${colors.dim}Approval:${colors.reset} ${this.permissionGate.planMode ? 'PLAN (read-only)' : this.permissionGate.mode}`);
     console.log(`${colors.dim}Type ${colors.cyan}/help${colors.dim} for slash commands or ${colors.cyan}/exit${colors.dim} to quit.${colors.reset}\n`);
 
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      prompt: `${colors.cyan}${colors.bright}samsudin (${this.model})${colors.reset} > `
+      prompt: this.promptText()
     });
 
     rl.prompt();
@@ -91,7 +109,7 @@ export class SamsudinREPL {
           rl.close();
           return;
         }
-        rl.setPrompt(`${colors.cyan}${colors.bright}samsudin (${this.model})${colors.reset} > `);
+        rl.setPrompt(this.promptText());
         rl.prompt();
         return;
       }
@@ -103,7 +121,7 @@ export class SamsudinREPL {
       } catch (err) {
         console.error(`\n${colors.red}${colors.bright}Error:${colors.reset} ${err.message}\n`);
       } finally {
-        rl.setPrompt(`${colors.cyan}${colors.bright}samsudin (${this.model})${colors.reset} > `);
+        rl.setPrompt(this.promptText());
         rl.resume();
         rl.prompt();
       }
@@ -119,22 +137,42 @@ export class SamsudinREPL {
   async executeTurn(userGoal) {
     this.sessionManager.stats.modelUsed = this.model;
 
-    const loop = new AgentLoop({
-      provider: this.provider,
-      cwd: this.cwd,
-      yolo: this.yolo,
-      maxSteps: this.maxSteps,
-      compactor: this.compactor,
-      permissionGate: this.permissionGate,
-      onEvent: createEventHandler({ verbose: this.verbose })
-    });
+    const onEvent = createEventHandler({ verbose: this.verbose });
+    const priorCount = this.conversationHistory.filter(m => m.role !== 'system').length;
+    let result;
 
-    const result = await loop.runTask(userGoal);
+    if (this.architectModel && !this.permissionGate.planMode) {
+      result = await runArchitectEditor({
+        goal: userGoal,
+        architectProvider: this.createProvider(this.architectModel),
+        editorProvider: this.provider,
+        cwd: this.cwd,
+        maxSteps: this.maxSteps,
+        compactor: this.compactor,
+        editorGate: this.permissionGate,
+        checkpointManager: this.checkpoints,
+        history: this.conversationHistory,
+        onEvent
+      });
+    } else {
+      const loop = new AgentLoop({
+        provider: this.provider,
+        cwd: this.cwd,
+        yolo: this.yolo,
+        maxSteps: this.maxSteps,
+        compactor: this.compactor,
+        permissionGate: this.permissionGate,
+        checkpointManager: this.permissionGate.planMode ? null : this.checkpoints,
+        onEvent
+      });
+      result = await loop.runTask(userGoal, { history: this.conversationHistory });
+    }
     this.conversationHistory = result.messages || [];
 
     // Extract tool calls made in this turn
     const toolCallsThisTurn = [];
-    for (const msg of this.conversationHistory) {
+    const newMessages = this.conversationHistory.filter(m => m.role !== 'system').slice(priorCount);
+    for (const msg of newMessages) {
       if (msg.role === 'user' && msg.content?.includes?.('=== TOOL RESULT:')) {
         const match = msg.content.match(/=== TOOL RESULT: ([a-zA-Z0-9_\-]+) ===/);
         if (match) toolCallsThisTurn.push({ name: match[1] });
@@ -173,6 +211,12 @@ ${colors.bright}Available Commands:${colors.reset}
     ${colors.cyan}/init${colors.reset}             Initialize SAMSUDIN.md project rulebook in workspace
     ${colors.cyan}/review${colors.reset}           Perform autonomous AI code review on uncommitted diff
     ${colors.cyan}/undo${colors.reset}             Revert uncommitted modifications in tracked files
+    ${colors.cyan}/plan [goal]${colors.reset}      Enter read-only PLAN mode (optionally plan [goal] right away)
+    ${colors.cyan}/act${colors.reset}              Leave plan mode and allow execution again
+    ${colors.cyan}/mode [name]${colors.reset}      Show/set approval mode: suggest | auto-edit | full-auto
+    ${colors.cyan}/architect <m>|off${colors.reset} Use model <m> as architect (planner); active model becomes editor
+    ${colors.cyan}/checkpoints${colors.reset}      List per-turn file checkpoints
+    ${colors.cyan}/rewind [n|id]${colors.reset}    Restore files to before the last n checkpoints (default 1)
     ${colors.cyan}/tasks${colors.reset}            List active background tasks and servers
     ${colors.cyan}/sys${colors.reset}              Show Ubuntu hardware, OS, memory, and docker status
     ${colors.cyan}/git${colors.reset}              Inspect git branch, status, and modified files
@@ -393,10 +437,96 @@ This repository uses the **Samsudin Autonomous Coding Agent**.
         return true;
 
       case '/yolo':
-        this.yolo = !this.yolo;
-        this.permissionGate.yolo = this.yolo;
-        console.log(`YOLO Auto-Approve: ${this.yolo ? '\x1b[33mON\x1b[0m' : 'OFF'}\n`);
+        this.permissionGate.yolo = !this.permissionGate.yolo;
+        this.yolo = this.permissionGate.yolo;
+        console.log(`YOLO Auto-Approve (full-auto): ${this.yolo ? '\x1b[33mON\x1b[0m' : 'OFF (suggest)'}\n`);
         return true;
+
+      case '/mode': {
+        const wanted = args[0]?.trim();
+        if (!wanted) {
+          console.log(`\n${colors.bright}Approval mode:${colors.reset} ${this.permissionGate.mode}${this.permissionGate.planMode ? ` ${colors.magenta}(plan mode overlay active)${colors.reset}` : ''}`);
+          console.log(`  suggest    ask before every write/command (read-only actions auto-approved)`);
+          console.log(`  auto-edit  auto-approve file edits inside the workspace, ask for other commands`);
+          console.log(`  full-auto  never ask (destructive patterns still blocked)\n`);
+          return true;
+        }
+        try {
+          this.permissionGate.setMode(wanted);
+          this.yolo = this.permissionGate.yolo;
+          this.configManager.saveLocalConfig({ approvalMode: wanted });
+          console.log(`${colors.green}✔ Approval mode:${colors.reset} ${wanted}\n`);
+        } catch (e) {
+          console.log(`${colors.red}✖ ${e.message}${colors.reset}\n`);
+        }
+        return true;
+      }
+
+      case '/plan': {
+        this.permissionGate.planMode = true;
+        console.log(`${colors.magenta}✔ PLAN mode ON${colors.reset} - read-only investigation; use ${colors.cyan}/act${colors.reset} to allow execution.\n`);
+        const goal = args.join(' ').trim();
+        if (goal) {
+          try {
+            await this.executeTurn(goal);
+          } catch (err) {
+            console.error(`\n${colors.red}${colors.bright}Error:${colors.reset} ${err.message}\n`);
+          }
+        }
+        return true;
+      }
+
+      case '/act':
+        this.permissionGate.planMode = false;
+        console.log(`${colors.green}✔ PLAN mode OFF${colors.reset} - execution enabled (approval: ${this.permissionGate.mode}). Tell Samsudin to carry out the plan.\n`);
+        return true;
+
+      case '/architect': {
+        const wanted = args[0]?.trim();
+        if (!wanted) {
+          console.log(this.architectModel
+            ? `Architect: ${colors.yellow}${this.architectModel}${colors.reset} -> Editor: ${colors.green}${this.model}${colors.reset}. Disable with /architect off\n`
+            : `Architect/Editor is OFF. Usage: /architect <architect-model>  (the active model, ${this.model}, becomes the editor)\n`);
+          return true;
+        }
+        if (wanted === 'off') {
+          this.architectModel = null;
+          this.configManager.saveLocalConfig({ architectModel: null });
+          console.log(`${colors.green}✔ Architect/Editor disabled.${colors.reset}\n`);
+        } else {
+          this.architectModel = wanted;
+          this.configManager.saveLocalConfig({ architectModel: wanted });
+          console.log(`${colors.green}✔ Architect:${colors.reset} ${wanted} ${colors.dim}(plans, read-only)${colors.reset} -> ${colors.green}Editor:${colors.reset} ${this.model} ${colors.dim}(implements)${colors.reset}\n`);
+        }
+        return true;
+      }
+
+      case '/checkpoints': {
+        const list = this.checkpoints.list();
+        if (list.length === 0) {
+          console.log(`\n${colors.dim}No checkpoints yet (created when Samsudin modifies files).${colors.reset}\n`);
+          return true;
+        }
+        console.log(`\n${colors.bright}Checkpoints (${list.length}, oldest first):${colors.reset}`);
+        list.forEach(cp => {
+          console.log(`  • ${colors.cyan}${cp.id}${colors.reset} ${colors.dim}${cp.createdAt}${colors.reset} - ${cp.files.length} file(s) - "${cp.label.slice(0, 60)}"`);
+        });
+        console.log(`\n${colors.dim}Note: only edits via write_file/replace_file_content are tracked, not side effects of bash.${colors.reset}\n`);
+        return true;
+      }
+
+      case '/rewind': {
+        try {
+          const res = this.checkpoints.rewind(args[0]?.trim() || 1);
+          console.log(`${colors.green}✔ ${res.message}${colors.reset}`);
+          res.restored.forEach(f => console.log(`  ↺ restored ${f}`));
+          res.removed.forEach(f => console.log(`  ✖ removed  ${f}`));
+          console.log('');
+        } catch (e) {
+          console.log(`${colors.red}✖ ${e.message}${colors.reset}\n`);
+        }
+        return true;
+      }
 
       case '/stats': {
         const s = this.sessionManager.getStatsSummary();

@@ -99,6 +99,46 @@ test('SamsudinREPL - handles complete slash commands suite', async () => {
     assert.equal(await repl.handleSlashCommand('/tasks'), true);
     assert.equal(await repl.handleSlashCommand('/sys'), true);
 
+    // /yolo <-> approval mode stay in sync
+    assert.equal(repl.yolo, false);
+    assert.equal(await repl.handleSlashCommand('/yolo'), true);
+    assert.equal(repl.yolo, true);
+    assert.equal(repl.permissionGate.mode, 'full-auto');
+
+    // /mode
+    assert.equal(await repl.handleSlashCommand('/mode'), true);
+    assert.equal(await repl.handleSlashCommand('/mode auto-edit'), true);
+    assert.equal(repl.permissionGate.mode, 'auto-edit');
+    assert.equal(repl.yolo, false);
+    assert.equal(await repl.handleSlashCommand('/mode bogus'), true);
+    assert.equal(repl.permissionGate.mode, 'auto-edit');
+
+    // /plan & /act
+    assert.equal(await repl.handleSlashCommand('/plan'), true);
+    assert.equal(repl.permissionGate.planMode, true);
+    assert.match(repl.promptText(), /plan/);
+    assert.equal(await repl.handleSlashCommand('/act'), true);
+    assert.equal(repl.permissionGate.planMode, false);
+
+    // /architect
+    assert.equal(await repl.handleSlashCommand('/architect deepseek-reasoner'), true);
+    assert.equal(repl.architectModel, 'deepseek-reasoner');
+    assert.match(repl.promptText(), /architect:deepseek-reasoner/);
+    assert.equal(await repl.handleSlashCommand('/architect off'), true);
+    assert.equal(repl.architectModel, null);
+
+    // /checkpoints & /rewind (real file round-trip)
+    assert.equal(await repl.handleSlashCommand('/checkpoints'), true);
+    const f = path.join(tmpDir, 'tracked.txt');
+    fs.writeFileSync(f, 'v1');
+    repl.checkpoints.begin('manual');
+    repl.checkpoints.trackFile(f);
+    fs.writeFileSync(f, 'v2');
+    assert.equal(await repl.handleSlashCommand('/checkpoints'), true);
+    assert.equal(await repl.handleSlashCommand('/rewind'), true);
+    assert.equal(fs.readFileSync(f, 'utf-8'), 'v1');
+    assert.equal(await repl.handleSlashCommand('/rewind'), true); // nothing left: handled gracefully
+
     // /exit
     assert.equal(await repl.handleSlashCommand('/exit'), 'EXIT');
   } finally {

@@ -39,6 +39,22 @@ It combines the battle-tested **Claude Code agentic loop architecture** (`Percei
 8. **Multi-Provider Engine Integration**:
    - Plugs directly into `ai-free` OpenAI-compatible endpoint (`http://127.0.0.1:4318/v1`) or any standard OpenAI API.
    - Supports 10 free frontier models: DeepSeek-V3, ERNIE-5.1 (Wenxin), Hunyuan 4, GLM-4-Plus, Qwen 3 Max, Kimi, MiniMax, Xiaomi MiMo, InternLM, and ChatGPT.
+9. **Stuck Loop Detector & Autonomous Recovery (OpenHands / CodeAct)**:
+   - Tracks normalized observation signatures to detect repeating loops, consecutive tool errors, and ping-pong tool alternation.
+   - Issues an autonomous corrective warning to nudge the model to adjust course; safely aborts if the model remains stuck rather than burning infinite tokens.
+10. **File Checkpoints & Time-Travel Rewind (Cline / Claude Code)**:
+   - Lazy per-turn file snapshotting in `.samsudin/checkpoints/` before `write_file` or `replace_file_content` mutates files.
+   - Fast `/checkpoints` listing and `/rewind [n|id]` time-travel to roll back edits and remove files created during turns.
+11. **Strict Read-Only Plan Mode (Claude Code / Cline)**:
+   - Activated via `/plan` or `--plan`.
+   - Enforces read-only system constraints and blocks all mutating tools and shell mutation commands.
+   - Lets the model safely inspect, explore, and propose structured plans before execution is unlocked with `/act`.
+12. **Multi-Tier Approval & Sandbox Modes (Codex CLI)**:
+   - Three security levels: `suggest` (prompts on writes/commands, auto-approves read-only actions), `auto-edit` (auto-permits in-workspace edits, prompts on shell commands), and `full-auto` (unrestricted except destructive patterns like `rm -rf /`).
+   - Switch modes anytime via `/mode [suggest|auto-edit|full-auto]` or CLI `--mode <name>`.
+13. **Architect / Editor Dual-Model Mode (Aider)**:
+   - Pairs a deep reasoning model (e.g. `deepseek-reasoner` or `intern-s1`) as the read-only Architect to devise the strategy, with a fast tool caller as Editor to implement the plan.
+   - Activate via `/architect <model>|off` or CLI `--architect <model>`.
 
 ---
 
@@ -135,7 +151,10 @@ samsudin/
 │   │   ├── repl.mjs                # Interactive REPL shell & slash commands
 │   │   ├── session-manager.mjs     # Session recording & transcript persistence
 │   │   ├── context-compactor.mjs   # 3-tier context management & sliding window
-│   │   └── permissions.mjs         # Permission gate & security policy
+│   │   ├── permissions.mjs         # Multi-tier permission gate & security sandbox
+│   │   ├── checkpoint-manager.mjs  # Per-turn file snapshotting & /rewind time-travel
+│   │   ├── stuck-detector.mjs      # Observation loop detection & auto-nudge/abort
+│   │   └── architect.mjs           # Two-phase Architect/Editor planner-implementer
 │   ├── parser/
 │   │   └── tool-call-parser.mjs    # Hermes XML + JSON dual parser
 │   ├── tools/
@@ -155,7 +174,7 @@ samsudin/
 │   │   └── system.mjs              # System prompt builder
 │   └── utils/
 │       └── terminal-ui.mjs         # Terminal banners and progress visualizer
-├── test/                           # 16 unit tests (100% pass)
+├── test/                           # 32 unit & harness tests (100% pass)
 ├── website/                        # Official Landing Page
 ├── SAMSUDIN.md                     # Agent workspace rules
 └── package.json
@@ -181,17 +200,32 @@ samsudin (k1.5) > /stats
 
 ### 2. Autonomous One-Off Task
 ```bash
-# Run task autonomously with YOLO mode
+# Run task autonomously with YOLO (full-auto) mode
 samsudin --yolo "Audit package.json, run tests, and fix any broken scripts"
 
-# Run with a specific model
-samsudin --model intern-s1 "Refactor database query logic in src/db.mjs"
-samsudin --model ERINE-5.1 "Analyze project architecture and generate documentation"
+# Run in read-only PLAN mode (investigates & plans, modifies zero files)
+samsudin --plan "Investigate why auth tests are flaky and propose a fix"
+
+# Run with dual-model Architect / Editor mode (deepseek-reasoner plans, intern-s1 writes)
+samsudin --architect deepseek-reasoner --model intern-s1 "Refactor database query logic in src/db.mjs"
+
+# Run with explicit approval mode
+samsudin --mode auto-edit "Analyze project architecture and generate documentation"
 ```
 
 ### 3. REPL Slash Commands (Full Harness Capabilities)
 
-Samsudin implements the full spectrum of slash commands found in leading agent harnesses (Claude Code, OpenCode, Hermes):
+Samsudin implements the full spectrum of slash commands found in leading agent harnesses (Claude Code, OpenCode, Hermes, Cline, Aider):
+
+#### 🛡️ Safety, Modes & Time-Travel Commands
+| Command | Description |
+| :--- | :--- |
+| `/plan [goal]` | Activate strict read-only PLAN mode; blocks file writes and bash mutations while researching |
+| `/act` | Deactivate plan mode and restore execution permissions to carry out the strategy |
+| `/mode [name]` | View or switch approval mode: `suggest` (prompt on writes), `auto-edit` (auto-write workspace files), `full-auto` (unrestricted) |
+| `/architect <model>\|off` | Pair a reasoning model as Architect with the active model as Editor |
+| `/checkpoints` | List turn-by-turn file snapshot checkpoints in `.samsudin/checkpoints/` |
+| `/rewind [n\|id]` | Time-travel restore: restores file states and deletes newly created files from earlier turns |
 
 #### 🧠 Model & AI Engine Commands
 | Command | Description |
@@ -232,7 +266,7 @@ Run the built-in Node test suite:
 ```bash
 npm test
 ```
-All 18 unit tests run with zero external test dependencies (`node:test` and `node:assert/strict`).
+All 32 unit and harness tests run with zero external test dependencies (`node:test` and `node:assert/strict`).
 
 ---
 
