@@ -1,0 +1,29 @@
+{
+  "name": "samsudin",
+  "version": "1.0.0",
+  "description": "High-performance autonomous coding agent harness powered by multi-provider free AI engine",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "bin": {
+    "samsudin": "./bin/samsudin.mjs"
+  },
+  "scripts": {
+    "start": "node ./bin/samsudin.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "keywords": [
+    "ai-agent",
+    "agent-harness",
+    "coding-agent",
+    "claude-code",
+    "hermes",
+    "opencode",
+    "autonomous-agent",
+    "developer-tools"
+  ],
+  "author": "Samsudin Contributors",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
