@@ -16,7 +16,14 @@ export class SessionManager {
       turns: 0,
       toolCallsCount: 0,
       toolsUsed: {},
-      modelUsed: null
+      modelUsed: null,
+      usage: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+        savingsUsd: 0
+      }
     };
     this.history = [];
   }
@@ -27,7 +34,7 @@ export class SessionManager {
     }
   }
 
-  recordTurn(userPrompt, assistantResponse, toolCalls = []) {
+  recordTurn(userPrompt, assistantResponse, toolCalls = [], usage = {}) {
     this.stats.turns++;
     this.stats.toolCallsCount += toolCalls.length;
     for (const call of toolCalls) {
@@ -35,12 +42,30 @@ export class SessionManager {
       this.stats.toolsUsed[name] = (this.stats.toolsUsed[name] || 0) + 1;
     }
 
+    // Accumulate tokens
+    const pTokens = usage.promptTokens || 0;
+    const cTokens = usage.completionTokens || 0;
+    const tTokens = usage.totalTokens || (pTokens + cTokens);
+
+    this.stats.usage.promptTokens += pTokens;
+    this.stats.usage.completionTokens += cTokens;
+    this.stats.usage.totalTokens += tTokens;
+
+    // Commercial API baseline: ~$2.50 per 1M prompt, ~$10.00 per 1M completion
+    const savings = (pTokens * 0.0000025) + (cTokens * 0.00001);
+    this.stats.usage.savingsUsd = Number((this.stats.usage.savingsUsd + savings).toFixed(6));
+
     this.history.push({
       turn: this.stats.turns,
       timestamp: new Date().toISOString(),
       userPrompt,
       assistantResponse,
-      toolCalls
+      toolCalls,
+      usage: {
+        promptTokens: pTokens,
+        completionTokens: cTokens,
+        totalTokens: tTokens
+      }
     });
 
     this.save();
@@ -65,6 +90,7 @@ export class SessionManager {
       turns: this.stats.turns,
       toolCallsCount: this.stats.toolCallsCount,
       toolsUsed: this.stats.toolsUsed,
+      usage: this.stats.usage,
       sessionFile: this.sessionFile
     };
   }

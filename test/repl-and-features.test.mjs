@@ -24,25 +24,37 @@ test('ConfigManager - loads default and persists local config', () => {
   }
 });
 
-test('SessionManager - records turns and writes session file', () => {
+test('SessionManager - records turns with token usage and cost savings', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'samsudin-sess-'));
   try {
     const sm = new SessionManager(tmpDir);
-    sm.recordTurn('Task 1', 'Answer 1', [{ name: 'bash' }]);
-    sm.recordTurn('Task 2', 'Answer 2', [{ name: 'view_file' }, { name: 'write_file' }]);
+    sm.recordTurn('Task 1', 'Answer 1', [{ name: 'bash' }], {
+      promptTokens: 1000,
+      completionTokens: 200,
+      totalTokens: 1200
+    });
+    sm.recordTurn('Task 2', 'Answer 2', [{ name: 'view_file' }, { name: 'write_file' }], {
+      promptTokens: 1500,
+      completionTokens: 300,
+      totalTokens: 1800
+    });
 
     const stats = sm.getStatsSummary();
     assert.equal(stats.turns, 2);
     assert.equal(stats.toolCallsCount, 3);
     assert.equal(stats.toolsUsed.bash, 1);
     assert.equal(stats.toolsUsed.write_file, 1);
+    assert.equal(stats.usage.promptTokens, 2500);
+    assert.equal(stats.usage.completionTokens, 500);
+    assert.equal(stats.usage.totalTokens, 3000);
+    assert.ok(stats.usage.savingsUsd > 0);
     assert.ok(fs.existsSync(stats.sessionFile));
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
 
-test('SamsudinREPL - handles slash commands', async () => {
+test('SamsudinREPL - handles complete slash commands suite', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'samsudin-repl-'));
   try {
     const repl = new SamsudinREPL({ cwd: tmpDir, model: 'intern-s1' });
@@ -50,9 +62,38 @@ test('SamsudinREPL - handles slash commands', async () => {
     // /help
     assert.equal(await repl.handleSlashCommand('/help'), true);
 
-    // /model switch
+    // /usage & /cost
+    assert.equal(await repl.handleSlashCommand('/usage'), true);
+    assert.equal(await repl.handleSlashCommand('/cost'), true);
+
+    // /tokens
+    assert.equal(await repl.handleSlashCommand('/tokens'), true);
+
+    // /model (query active)
+    assert.equal(await repl.handleSlashCommand('/model'), true);
+
+    // /model (switch model)
     assert.equal(await repl.handleSlashCommand('/model k1.5'), true);
     assert.equal(repl.model, 'k1.5');
+
+    // /doctor
+    assert.equal(await repl.handleSlashCommand('/doctor'), true);
+
+    // /init (creates SAMSUDIN.md)
+    assert.equal(await repl.handleSlashCommand('/init'), true);
+    assert.ok(fs.existsSync(path.join(tmpDir, 'SAMSUDIN.md')));
+    // calling /init again when already exists
+    assert.equal(await repl.handleSlashCommand('/init'), true);
+
+    // /tools
+    assert.equal(await repl.handleSlashCommand('/tools'), true);
+
+    // /stats
+    assert.equal(await repl.handleSlashCommand('/stats'), true);
+
+    // /compact & /clear
+    assert.equal(await repl.handleSlashCommand('/compact'), true);
+    assert.equal(await repl.handleSlashCommand('/clear'), true);
 
     // /yolo toggle
     assert.equal(repl.yolo, false);

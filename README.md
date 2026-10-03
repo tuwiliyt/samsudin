@@ -183,19 +183,38 @@ samsudin --model intern-s1 "Refactor database query logic in src/db.mjs"
 samsudin --model ERINE-5.1 "Analyze project architecture and generate documentation"
 ```
 
-### 3. REPL Slash Commands
+### 3. REPL Slash Commands (Full Harness Capabilities)
+
+Samsudin implements the full spectrum of slash commands found in leading agent harnesses (Claude Code, OpenCode, Hermes):
+
+#### 🧠 Model & AI Engine Commands
 | Command | Description |
 | :--- | :--- |
-| `/model <name>` | Switch active model on the fly without exiting session |
-| `/models` | List all available models from connected backend |
-| `/clear` | Clear message history and start a fresh session |
-| `/compact` | Force context compaction manually |
-| `/tools` | List registered tools and parameter schemas |
-| `/yolo` | Toggle auto-approval of tool execution on/off |
-| `/stats` | View session metrics, tool calls breakdown, and logs |
+| `/usage`, `/cost` | Display cumulative token consumption (prompt vs completion), turn count, and commercial cost savings |
+| `/tokens` | Inspect current active context window usage, capacity gauge bar, and compaction readiness |
+| `/model` | Inspect active model information (provider, context window, capabilities) |
+| `/model <name>` | Switch active model on the fly without exiting session (e.g. `/model intern-s1`, `/model k1.5`) |
+| `/models` | Fetch and list all available models from the backend API |
+
+#### 📂 Session & Context Commands
+| Command | Description |
+| :--- | :--- |
+| `/compact` | Force 3-tier context compaction immediately to reclaim token capacity |
+| `/clear` | Clear conversation history and reset context for a clean task |
+| `/stats` | View session metrics, tool calls breakdown, net savings, and audit log path |
+| `/doctor` | Run comprehensive system diagnostics (Node runtime, Git branch, API status, credentials) |
+
+#### 🛠️ Developer & Git Autonomous Commands
+| Command | Description |
+| :--- | :--- |
+| `/init` | Scaffold standard `SAMSUDIN.md` project rules in the current workspace |
+| `/review` | Trigger autonomous AI code review on uncommitted `git diff` |
+| `/undo` | Revert uncommitted modifications in tracked files via git |
 | `/git` | Inspect git branch and modified files |
 | `/diff` | View uncommitted git diff in the workspace |
-| `/exit` | Gracefully save and exit REPL session |
+| `/tools` | List registered tools and parameter schemas |
+| `/yolo` | Toggle tool auto-approval mode on/off |
+| `/exit`, `/quit` | Gracefully save audit transcript and exit REPL session |
 
 ---
 

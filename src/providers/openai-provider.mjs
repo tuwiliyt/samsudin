@@ -9,6 +9,7 @@ export class OpenAIProvider extends BaseProvider {
     this.baseUrl = (options.baseUrl || 'http://127.0.0.1:4318/v1').replace(/\/+$/, '');
     this.apiKey = options.apiKey || process.env.OPENAI_API_KEY || 'dummy-key';
     this.timeoutMs = options.timeoutMs || 120000;
+    this.lastUsage = null;
   }
 
   async generateCompletion(messages, options = {}) {
@@ -18,16 +19,19 @@ export class OpenAIProvider extends BaseProvider {
     }
     return {
       text: fullText,
-      finishReason: 'stop'
+      finishReason: 'stop',
+      usage: this.lastUsage
     };
   }
 
   async *streamCompletion(messages, options = {}) {
+    this.lastUsage = null;
     const url = `${this.baseUrl}/chat/completions`;
     const payload = {
       model: options.model || this.model,
       messages,
       stream: true,
+      stream_options: { include_usage: true },
       temperature: options.temperature ?? 0.2
     };
 
@@ -78,6 +82,9 @@ export class OpenAIProvider extends BaseProvider {
             const jsonStr = trimmed.slice(6);
             try {
               const data = JSON.parse(jsonStr);
+              if (data.usage) {
+                this.lastUsage = data.usage;
+              }
               const delta = data.choices?.[0]?.delta?.content;
               if (delta) {
                 yield delta;
@@ -92,4 +99,16 @@ export class OpenAIProvider extends BaseProvider {
       clearTimeout(timeout);
     }
   }
+}
+
+/**
+ * Robust token estimator for prompt and completion messages.
+ * Uses average character-to-token ratio (~3.8 chars/token for code & natural languages).
+ */
+export function estimateTokens(text = '') {
+  if (!text) return 0;
+  if (typeof text !== 'string') {
+    text = JSON.stringify(text);
+  }
+  return Math.ceil(text.length / 3.8);
 }

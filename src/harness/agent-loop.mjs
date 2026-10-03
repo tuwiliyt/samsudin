@@ -3,6 +3,7 @@ import { PermissionGate } from './permissions.mjs';
 import { parseToolCallsFromText } from '../parser/tool-call-parser.mjs';
 import { dispatchToolCall } from '../tools/registry.mjs';
 import { buildSystemPrompt } from '../prompts/system.mjs';
+import { estimateTokens } from '../providers/openai-provider.mjs';
 
 /**
  * Samsudin Master Agent Loop
@@ -46,6 +47,11 @@ export class AgentLoop {
 
     let step = 0;
     let finalAnswer = '';
+    const totalUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0
+    };
 
     while (step < this.maxSteps) {
       step++;
@@ -75,6 +81,20 @@ export class AgentLoop {
       }
 
       this.emit('generation:end', { step, fullText: assistantText });
+
+      // Calculate token consumption for this step
+      const stepPromptTokens = this.provider.lastUsage?.prompt_tokens ?? estimateTokens(compactedMessages);
+      const stepCompletionTokens = this.provider.lastUsage?.completion_tokens ?? estimateTokens(assistantText);
+      totalUsage.promptTokens += stepPromptTokens;
+      totalUsage.completionTokens += stepCompletionTokens;
+      totalUsage.totalTokens += (stepPromptTokens + stepCompletionTokens);
+
+      this.emit('tokens', {
+        step,
+        stepPromptTokens,
+        stepCompletionTokens,
+        totalUsage: { ...totalUsage }
+      });
 
       if (assistantText.startsWith('[Error]') || assistantText.includes('API error HTTP')) {
         this.emit('error', { step, error: assistantText.trim() });
@@ -142,7 +162,8 @@ export class AgentLoop {
       success: true,
       stepsTaken: step,
       finalAnswer,
-      messages
+      messages,
+      usage: totalUsage
     };
   }
 
