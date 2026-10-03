@@ -38,9 +38,9 @@ Tidak perlu lagi membuka `F12` $\rightarrow$ *Application* $\rightarrow$ *Local 
 4. Klik tombol **"Load unpacked"** (Muat yang belum dibongkar) di pojok kiri atas.
 5. Pilih folder:
    ```text
-   ai-free/plugin-for-chrome
+   samsudin/extension
    ```
-6. Ekstensi **AI-Free Credentials Exporter** akan langsung muncul di daftar ekstensi!
+6. Ekstensi **Samsudin Credentials Exporter** akan langsung muncul di daftar ekstensi!
 7. Klik ikon puzzle (Extensions) di toolbar Chrome, lalu klik ikon **Pin** 📌 agar ekstensi mudah diakses.
 
 ---
@@ -48,30 +48,30 @@ Tidak perlu lagi membuka `F12` $\rightarrow$ *Application* $\rightarrow$ *Local 
 ## 🎯 Cara Menggunakan
 
 1. **Pastikan Anda Sudah Login di Web AI:**
-   - Masuk ke akun Anda di browser seperti biasa (misal: DeepSeek, Kimi, Tencent Hunyuan, dsb.).
+   - Masuk ke akun Anda di browser seperti biasa (misal: DeepSeek, Kimi, MiniMax, dsb.).
 2. **Buka Popup Ekstensi:**
-   - Klik ikon **AI-Free** di toolbar Chrome.
+   - Klik ikon **Samsudin** di toolbar Chrome.
 3. **Ekstrak Kredensial:**
    - **Opsi A (Scan Cepat):** Jika tab web AI sedang terbuka atau cookies sudah tersimpan, klik **"Scan Sesi Sekarang"**.
    - **Opsi B (Otomatis):** Klik **"Buka Semua & Ambil Token"**. Ekstensi akan membuka platform yang belum terdeteksi, mengambil tokennya, lalu menutup kembali tabnya secara otomatis.
-4. **Export ke AI-Free:**
+4. **Export ke Samsudin:**
    - Klik tombol hijau **"Download credentials.json"**.
-   - Pindahkan file `credentials.json` hasil unduhan ke folder root project `ai-free/`:
+   - Impor file hasil unduhan langsung ke Samsudin:
      ```bash
-     mv ~/Downloads/credentials.json /path/to/ai-free/credentials.json
+     samsudin auth import ~/Downloads/credentials.json
      ```
-5. **Jalankan Setup di Terminal:**
+5. **Periksa Status Kredensial:**
    ```bash
-   npm run setup
+   samsudin auth status
    ```
-   *Sistem AI-Free akan langsung mendeteksi file tersebut dan mengimpor seluruh provider secara instan!*
+   *Samsudin akan langsung mendeteksi kredensial tersebut dan siap digunakan untuk eksekusi coding otonom!*
 
 ---
 
 ## 📂 Struktur Berkas
 
 ```text
-plugin-for-chrome/
+extension/
 ├── manifest.json       # Konfigurasi Manifest V3
 ├── popup.html          # Antarmuka popup modern
 ├── popup.css           # Styling tema gelap responsif
