@@ -11,6 +11,8 @@ import { runArchitectEditor } from '../src/harness/architect.mjs';
 import { SamsudinREPL } from '../src/harness/repl.mjs';
 import { ConfigManager } from '../src/config/config-manager.mjs';
 import { OpenAIProvider } from '../src/providers/openai-provider.mjs';
+import { AuthManager } from '../src/auth/auth-manager.mjs';
+import { handleModelSelectionFlow } from '../src/harness/model-selector.mjs';
 import { printBanner, createEventHandler, colors } from '../src/utils/terminal-ui.mjs';
 
 const options = {
@@ -27,62 +29,6 @@ const options = {
   steps: { type: 'string', short: 's', default: '25' },
   help: { type: 'boolean', short: 'h', default: false }
 };
-
-const POPULAR_MODELS = [
-  { id: 'intern-s1', label: 'InternLM 2.5 Pro (intern-s1) [Verified Tool Caller]' },
-  { id: 'ERINE-5.1', label: 'Baidu Wenxin 5.1 (ERINE-5.1)' },
-  { id: 'k1.5', label: 'Kimi Moonshot 1.5 (k1.5)' },
-  { id: 'mimo-flash', label: 'Xiaomi MiMo Flash (mimo-flash)' },
-  { id: 'hy4-preview-g', label: 'Tencent Hunyuan 4 Preview (hy4-preview-g)' },
-  { id: 'glm-4.5', label: 'Zhipu GLM-4.5 (glm-4.5)' },
-  { id: 'qwen3.7-plus', label: 'Alibaba Qwen 3.7 Plus (qwen3.7-plus)' },
-  { id: 'deepseek-chat', label: 'DeepSeek V3 (deepseek-chat)' },
-  { id: 'minimax-m2.7', label: 'MiniMax M2.7 (minimax-m2.7)' }
-];
-
-async function selectModelInteractively(apiUrl) {
-  let availableModels = [];
-  try {
-    const res = await fetch(`${apiUrl}/models`);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.data)) {
-        availableModels = data.data.map(m => m.id);
-      }
-    }
-  } catch {}
-
-  console.log(`\n${colors.cyan}${colors.bright}Pilih Model AI untuk Eksekusi Harness:${colors.reset}`);
-  POPULAR_MODELS.forEach((item, index) => {
-    console.log(`  [${colors.yellow}${index + 1}${colors.reset}] ${item.label}`);
-  });
-  console.log(`  [${colors.yellow}${POPULAR_MODELS.length + 1}${colors.reset}] Masukkan model lainnya secara manual\n`);
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-
-  return new Promise((resolve) => {
-    rl.question(`${colors.bright}Pilihan Anda [1-${POPULAR_MODELS.length + 1} atau nama model]: ${colors.reset}`, (answer) => {
-      rl.close();
-      const trimmed = answer.trim();
-      const num = parseInt(trimmed, 10);
-
-      if (!isNaN(num) && num >= 1 && num <= POPULAR_MODELS.length) {
-        resolve(POPULAR_MODELS[num - 1].id);
-      } else if (num === POPULAR_MODELS.length + 1 || !trimmed) {
-        const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
-        rl2.question('Ketik nama model: ', (custom) => {
-          rl2.close();
-          resolve(custom.trim() || 'intern-s1');
-        });
-      } else {
-        resolve(trimmed);
-      }
-    });
-  });
-}
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -149,7 +95,13 @@ REPL Slash Commands:
   // Model resolution: CLI flag > ENV > Config file > Interactive prompt
   let chosenModel = values.model || process.env.SAMSUDIN_MODEL || cfg.defaultModel;
   if (!chosenModel && process.stdin.isTTY) {
-    chosenModel = await selectModelInteractively(values['api-url']);
+    const authManager = new AuthManager(process.cwd());
+    const sel = await handleModelSelectionFlow({
+      apiUrl: values['api-url'],
+      authManager,
+      currentModel: 'intern-s1'
+    });
+    chosenModel = sel.model || 'intern-s1';
   }
   if (!chosenModel) {
     chosenModel = 'intern-s1';

@@ -12,6 +12,7 @@ import { OpenAIProvider, estimateTokens } from '../providers/openai-provider.mjs
 import { AuthManager } from '../auth/auth-manager.mjs';
 import { TOOL_DEFINITIONS, dispatchToolCall } from '../tools/registry.mjs';
 import { colors, createEventHandler } from '../utils/terminal-ui.mjs';
+import { handleModelSelectionFlow } from './model-selector.mjs';
 
 /**
  * Model Metadata & Context Limits
@@ -299,22 +300,23 @@ ${colors.dim}To view all models:${colors.reset} ${colors.cyan}/models${colors.re
       }
 
       case '/models': {
-        try {
-          const res = await fetch(`${this.apiUrl}/models`);
-          if (res.ok) {
-            const data = await res.json();
-            console.log(`\n${colors.bright}Available Models from ${this.apiUrl}:${colors.reset}`);
-            data.data?.forEach(m => {
-              const meta = MODEL_METADATA[m.id];
-              const desc = meta ? ` - ${meta.name} (${(meta.contextWindow / 1024).toFixed(0)}k)` : '';
-              console.log(`  • ${colors.cyan}${m.id.padEnd(20)}${colors.reset}${desc}`);
-            });
-            console.log('');
-          } else {
-            console.log(`Failed to fetch models: HTTP ${res.status}`);
-          }
-        } catch (e) {
-          console.log(`Error connecting to ${this.apiUrl}: ${e.message}`);
+        const auth = new AuthManager(this.cwd);
+        const result = await handleModelSelectionFlow({
+          apiUrl: this.apiUrl,
+          authManager: auth,
+          currentModel: this.model
+        });
+
+        if (result.switched) {
+          this.model = result.model;
+          this.provider = new OpenAIProvider({
+            baseUrl: this.apiUrl,
+            apiKey: this.apiKey,
+            model: this.model
+          });
+          try {
+            this.configManager.saveConfig({ ...this.config, defaultModel: this.model });
+          } catch {}
         }
         return true;
       }

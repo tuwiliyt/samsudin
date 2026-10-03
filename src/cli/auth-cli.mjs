@@ -113,8 +113,13 @@ export async function handleAuthCommand(args = [], cwd = process.cwd()) {
   });
 }
 
-async function runProviderWizard(authManager, providerKey) {
+export async function runProviderWizard(authManager, providerKey) {
   const meta = PROVIDERS_META[providerKey];
+  if (!meta) {
+    console.log(`${colors.red}Provider '${providerKey}' is not supported.${colors.reset}\n`);
+    return false;
+  }
+
   console.log(`\n${colors.cyan}${colors.bright}--- Setup Provider: ${meta.name} ---${colors.reset}`);
   console.log(`${colors.bright}Website:${colors.reset} ${meta.url}`);
   console.log(`${colors.dim}${meta.instruction}${colors.reset}\n`);
@@ -129,7 +134,7 @@ async function runProviderWizard(authManager, providerKey) {
       const val = rawInput.trim();
       if (!val) {
         console.log(`${colors.red}Input was empty. Aborted.${colors.reset}\n`);
-        resolve();
+        resolve(false);
         return;
       }
 
@@ -152,7 +157,7 @@ async function runProviderWizard(authManager, providerKey) {
       console.log(`\n${colors.green}✔ ${meta.name} successfully connected!${colors.reset}`);
       console.log(`${colors.dim}Credentials saved to ~/.samsudin/credentials.json${colors.reset}`);
       console.log(`Default model is now: ${colors.cyan}${meta.model}${colors.reset}\n`);
-      resolve();
+      resolve(true);
     });
   });
 }

@@ -234,7 +234,7 @@ Samsudin implements the full spectrum of slash commands found in leading agent h
 | `/tokens` | Inspect current active context window usage, capacity gauge bar, and compaction readiness |
 | `/model` | Inspect active model information (provider, context window, capabilities) |
 | `/model <name>` | Switch active model on the fly without exiting session (e.g. `/model intern-s1`, `/model k1.5`) |
-| `/models` | Fetch and list all available models from the backend API |
+| `/models` | Interactive Model Picker: prioritizes active/ready models first, navigate with `[Tab]` / `[↑]` / `[↓]`, select with `[Enter]`. Selecting an unconfigured model triggers on-the-fly credential onboarding! |
 
 #### 📂 Session & Context Commands
 | Command | Description |
@@ -266,7 +266,7 @@ Run the built-in Node test suite:
 ```bash
 npm test
 ```
-All 32 unit and harness tests run with zero external test dependencies (`node:test` and `node:assert/strict`).
+All 37 unit and harness tests run with zero external test dependencies (`node:test` and `node:assert/strict`).
 
 ---
 
