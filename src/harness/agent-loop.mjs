@@ -171,7 +171,17 @@ export class AgentLoop {
     if (typeof result === 'string') return result;
 
     if (toolName === 'bash') {
+      if (result.isBackground) {
+        return `[BACKGROUND PROCESS STARTED]\nTask ID: ${result.taskId}\nPID: ${result.pid}\nCommand: ${result.command}\nLog File: ${result.logFile}\nStatus: RUNNING\nNote: Use process_manager tool (action="logs" or action="status") to monitor this task.`;
+      }
       return `Exit Code: ${result.exitCode}\nStdout:\n${result.stdout || '(no stdout)'}\nStderr:\n${result.stderr || '(no stderr)'}`;
+    }
+
+    if (toolName === 'process_manager') {
+      if (result.logs !== undefined) {
+        return `Task ID: ${result.taskId} (PID: ${result.pid}, Status: ${result.status})\nLogs (last ${result.linesShown} lines of ${result.totalLines}):\n${result.logs || '(empty)'}`;
+      }
+      return JSON.stringify(result, null, 2);
     }
 
     if (toolName === 'view_file') {

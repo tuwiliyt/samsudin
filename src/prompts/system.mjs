@@ -1,4 +1,5 @@
 import { TOOL_DEFINITIONS } from '../tools/registry.mjs';
+import { UBUNTU_TERMINAL_SKILLS } from './ubuntu-skills.mjs';
 
 /**
  * Builds the comprehensive system prompt for Samsudin Agent.
@@ -42,7 +43,9 @@ Alternatively, you may output JSON inside a code fence:
 5. **Precision Edits**: Use \`replace_file_content\` for targeted modifications. Only use \`write_file\` when creating a new file or completely rewriting one.
 6. **Resilience**: If a tool fails or an error occurs, analyze the error output and adjust your plan autonomously.
 7. **No Hallucinated Tools**: Only use the tools explicitly listed above.
-8. When your task is complete and verified, give a concise final summary without any further tool calls.`;
+8. When your task is complete and verified, give a concise final summary without any further tool calls.
+
+${UBUNTU_TERMINAL_SKILLS}`;
 
   if (projectInstructions && projectInstructions.content) {
     prompt += `\n\n## Project Specific Guidelines (${projectInstructions.file}):\n${projectInstructions.content}`;

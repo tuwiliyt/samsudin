@@ -1,11 +1,25 @@
 import { exec } from 'node:child_process';
+import { getProcessManager } from './process-manager.mjs';
 
 /**
- * Execute a shell command with timeout and output truncation.
+ * Execute a shell command with timeout, output truncation, or in background.
  */
-export async function executeBash({ command, cwd = process.cwd(), timeoutMs = 60000, maxOutputBytes = 100000 }) {
+export async function executeBash({
+  command,
+  cwd = process.cwd(),
+  timeoutMs = 60000,
+  maxOutputBytes = 100000,
+  isBackground = false,
+  background = false
+}) {
   if (!command || typeof command !== 'string') {
     throw new Error('Command must be a non-empty string.');
+  }
+
+  // Handle background / daemon processes
+  if (isBackground || background) {
+    const mgr = getProcessManager(cwd);
+    return mgr.spawnTask({ command, cwd });
   }
 
   return new Promise((resolve) => {
@@ -17,8 +31,12 @@ export async function executeBash({ command, cwd = process.cwd(), timeoutMs = 60
       shell: '/bin/bash',
       env: {
         ...process.env,
+        DEBIAN_FRONTEND: 'noninteractive',
         PAGER: 'cat',
-        GIT_PAGER: 'cat'
+        GIT_PAGER: 'cat',
+        TERM: 'dumb',
+        CI: '1',
+        LC_ALL: 'C.UTF-8'
       }
     }, (error, stdout, stderr) => {
       const durationMs = Date.now() - startTime;

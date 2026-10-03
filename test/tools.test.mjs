@@ -121,3 +121,37 @@ print(f"AVERAGE={avg}")
   }
 });
 
+test('ProcessManager - spawns, logs, monitors, and terminates background task', async () => {
+  const { ProcessManager } = await import('../src/tools/process-manager.mjs');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'samsudin-proc-'));
+
+  try {
+    const mgr = new ProcessManager(tmpDir);
+
+    // 1. Spawn a background process (e.g. echo loop)
+    const task = mgr.spawnTask({ command: 'echo "hello from daemon" && sleep 5 && echo "done"' });
+    assert.ok(task.taskId);
+    assert.ok(task.pid > 0);
+    assert.equal(task.status, 'RUNNING');
+
+    // Wait a brief moment for output to flush
+    await new Promise(r => setTimeout(r, 300));
+
+    // 2. Get status
+    const status = mgr.getStatus({ taskId: task.taskId });
+    assert.equal(status.status, 'RUNNING');
+
+    // 3. Inspect logs
+    const logs = mgr.getLogs({ taskId: task.taskId });
+    assert.ok(logs.logs.includes('hello from daemon'));
+
+    // 4. Kill task
+    const killRes = mgr.killTask({ taskId: task.taskId });
+    assert.equal(killRes.killed, true);
+    assert.equal(killRes.status, 'KILLED');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+

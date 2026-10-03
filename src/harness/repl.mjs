@@ -173,6 +173,8 @@ ${colors.bright}Available Commands:${colors.reset}
     ${colors.cyan}/init${colors.reset}             Initialize SAMSUDIN.md project rulebook in workspace
     ${colors.cyan}/review${colors.reset}           Perform autonomous AI code review on uncommitted diff
     ${colors.cyan}/undo${colors.reset}             Revert uncommitted modifications in tracked files
+    ${colors.cyan}/tasks${colors.reset}            List active background tasks and servers
+    ${colors.cyan}/sys${colors.reset}              Show Ubuntu hardware, OS, memory, and docker status
     ${colors.cyan}/git${colors.reset}              Inspect git branch, status, and modified files
     ${colors.cyan}/diff${colors.reset}             Show uncommitted git diff
     ${colors.cyan}/tools${colors.reset}            List all registered tools and parameter schemas
@@ -424,6 +426,66 @@ ${colors.bright}Session Statistics:${colors.reset}
         const { getGitDiff } = await import('../tools/git-tools.mjs');
         const diff = await getGitDiff({ cwd: this.cwd });
         console.log(`\n${colors.bright}Git Diff:${colors.reset}\n${diff.diff || '(no diff)'}\n`);
+        return true;
+      }
+
+      case '/tasks': {
+        const { getProcessManager } = await import('../tools/process-manager.mjs');
+        const mgr = getProcessManager(this.cwd);
+        const tasks = mgr.listTasks();
+        if (tasks.length === 0) {
+          console.log(`\n${colors.dim}No background tasks currently recorded.${colors.reset}\n`);
+          return true;
+        }
+        console.log(`\n${colors.bright}Background Tasks (${tasks.length}):${colors.reset}`);
+        for (const t of tasks) {
+          const statusColor = t.status === 'RUNNING' ? colors.green : colors.dim;
+          console.log(`  • ${colors.cyan}${t.taskId}${colors.reset} [PID ${t.pid}] ${statusColor}${t.status}${colors.reset} - "${t.command.slice(0, 45)}"`);
+          console.log(`    Log: ${colors.dim}${t.logFile}${colors.reset}`);
+        }
+        console.log('');
+        return true;
+      }
+
+      case '/sys': {
+        const { execSync } = await import('node:child_process');
+        const os = await import('node:os');
+        console.log(`\n${colors.bright}Ubuntu System Environment & Hardware Diagnostics:${colors.reset}\n`);
+        try {
+          const osInfo = execSync('lsb_release -d 2>/dev/null || cat /etc/os-release | grep PRETTY_NAME', { encoding: 'utf-8' }).trim();
+          console.log(`  • OS:        ${osInfo.replace('Description:\t', '').replace('PRETTY_NAME=', '').replace(/"/g, '')}`);
+        } catch {
+          console.log(`  • OS:        ${process.platform} ${process.arch}`);
+        }
+        try {
+          console.log(`  • Kernel:    ${execSync('uname -r', { encoding: 'utf-8' }).trim()}`);
+        } catch {}
+        console.log(`  • CPU:       ${os.cpus()[0]?.model || 'Generic CPU'} (${os.cpus().length} cores)`);
+        
+        try {
+          const mem = execSync('free -h | awk \'/^Mem:/ {print $3 "/" $2}\'', { encoding: 'utf-8' }).trim();
+          console.log(`  • Memory:    ${mem} used`);
+        } catch {}
+
+        try {
+          const disk = execSync('df -h / | awk \'NR==2 {print $3 "/" $2 " (" $5 " used)"}\'', { encoding: 'utf-8' }).trim();
+          console.log(`  • Disk:      ${disk}`);
+        } catch {}
+
+        try {
+          const ports = execSync('ss -tulpn 2>/dev/null | grep LISTEN | head -n 5', { encoding: 'utf-8' }).trim();
+          if (ports) {
+            console.log(`  • Listening Sockets:\n${ports.split('\n').map(l => '      ' + l).join('\n')}`);
+          }
+        } catch {}
+
+        try {
+          const dockerVer = execSync('docker --version 2>/dev/null', { encoding: 'utf-8' }).trim();
+          console.log(`  • Docker:    ${dockerVer || 'Not installed'}`);
+        } catch {
+          console.log(`  • Docker:    Not installed / inactive`);
+        }
+        console.log('');
         return true;
       }
 

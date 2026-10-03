@@ -95,10 +95,9 @@ test('SamsudinREPL - handles complete slash commands suite', async () => {
     assert.equal(await repl.handleSlashCommand('/compact'), true);
     assert.equal(await repl.handleSlashCommand('/clear'), true);
 
-    // /yolo toggle
-    assert.equal(repl.yolo, false);
-    assert.equal(await repl.handleSlashCommand('/yolo'), true);
-    assert.equal(repl.yolo, true);
+    // /tasks & /sys
+    assert.equal(await repl.handleSlashCommand('/tasks'), true);
+    assert.equal(await repl.handleSlashCommand('/sys'), true);
 
     // /exit
     assert.equal(await repl.handleSlashCommand('/exit'), 'EXIT');

@@ -19,6 +19,10 @@ export const TOOL_DEFINITIONS = [
         timeoutMs: {
           type: 'number',
           description: 'Optional execution timeout in milliseconds (default 60000ms).'
+        },
+        isBackground: {
+          type: 'boolean',
+          description: 'Set to true for long-running processes (e.g. servers, watchers, daemons). Returns a taskId and runs detached in background.'
         }
       },
       required: ['command']
@@ -160,6 +164,29 @@ export const TOOL_DEFINITIONS = [
       },
       required: []
     }
+  },
+  {
+    name: 'process_manager',
+    description: 'Manage and monitor background processes (daemons, dev servers, long-running commands). Actions: "list", "logs", "status", "kill".',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['list', 'logs', 'status', 'kill'],
+          description: 'Action to perform: list all tasks, inspect logs, check status, or kill process.'
+        },
+        taskId: {
+          type: 'string',
+          description: 'The taskId to inspect or terminate (required for "logs", "status", "kill").'
+        },
+        lines: {
+          type: 'number',
+          description: 'Optional number of log lines to retrieve (default 50).'
+        }
+      },
+      required: ['action']
+    }
   }
 ];
 
@@ -171,8 +198,18 @@ export async function dispatchToolCall(toolName, args = {}, context = {}) {
       return await executeBash({
         command: args.command,
         cwd,
-        timeoutMs: args.timeoutMs || 60000
+        timeoutMs: args.timeoutMs || 60000,
+        isBackground: Boolean(args.isBackground || args.background)
       });
+    case 'process_manager': {
+      const { getProcessManager } = await import('./process-manager.mjs');
+      const mgr = getProcessManager(cwd);
+      if (args.action === 'list') return mgr.listTasks();
+      if (args.action === 'logs') return mgr.getLogs({ taskId: args.taskId, lines: args.lines });
+      if (args.action === 'status') return mgr.getStatus({ taskId: args.taskId });
+      if (args.action === 'kill') return mgr.killTask({ taskId: args.taskId });
+      throw new Error(`Unknown process_manager action: ${args.action}. Valid actions: list, logs, status, kill.`);
+    }
     case 'view_file':
       return await viewFile({
         filePath: args.filePath,

@@ -22,15 +22,21 @@ It combines the battle-tested **Claude Code agentic loop architecture** (`Percei
 5. **3-Tier Context Compaction**:
    - Prunes old terminal outputs and file dumps across iterations to prevent context exhaustion.
    - Automatically injects persistent rules from `SAMSUDIN.md` or `AGENTS.md`.
-6. **Comprehensive Developer Tools**:
-   - `bash`: Shell execution with timeout and output truncation.
-   - `view_file`: Paginated line inspection.
-   - `write_file`: File creation with directory scaffolding.
+6. **Comprehensive Developer Tools & Process Manager**:
+   - `bash`: Shell execution with timeout, output truncation, and background process spawning (`isBackground: true`).
+   - `process_manager`: Inspect background tasks, tail stdout/stderr logs, check status, or terminate processes.
+   - `view_file`: Paginated line inspection supporting absolute, relative, and home tilde (`~`) paths.
+   - `write_file`: File and script creation with automatic directory scaffolding.
    - `replace_file_content`: Precise contiguous block replacement.
    - `grep`: Regex pattern search across the workspace.
    - `glob`: Rapid file path and pattern discovery.
    - `git_status` & `git_diff`: Workspace change inspection.
-7. **Multi-Provider Engine Integration**:
+7. **Ubuntu Linux Terminal Superpowers**:
+   - Automated non-interactive package installation (`apt-get`, `snap`, `pip`, `npm`).
+   - Process inspection, listening socket monitoring (`ss -tulpn`, `lsof -i :port`).
+   - Docker container and Kubernetes (`kubectl`) administration.
+   - Real-time hardware and resource diagnostics (`/sys`).
+8. **Multi-Provider Engine Integration**:
    - Plugs directly into `ai-free` OpenAI-compatible endpoint (`http://127.0.0.1:4318/v1`) or any standard OpenAI API.
    - Supports 10 free frontier models: DeepSeek-V3, ERNIE-5.1 (Wenxin), Hunyuan 4, GLM-4-Plus, Qwen 3 Max, Kimi, MiniMax, Xiaomi MiMo, InternLM, and ChatGPT.
 
@@ -210,6 +216,8 @@ Samsudin implements the full spectrum of slash commands found in leading agent h
 | `/init` | Scaffold standard `SAMSUDIN.md` project rules in the current workspace |
 | `/review` | Trigger autonomous AI code review on uncommitted `git diff` |
 | `/undo` | Revert uncommitted modifications in tracked files via git |
+| `/tasks` | List all active background tasks, daemons, and servers |
+| `/sys` | Display Ubuntu hardware, kernel, memory, socket, and Docker diagnostics |
 | `/git` | Inspect git branch and modified files |
 | `/diff` | View uncommitted git diff in the workspace |
 | `/tools` | List registered tools and parameter schemas |
@@ -224,7 +232,7 @@ Run the built-in Node test suite:
 ```bash
 npm test
 ```
-All 16 unit tests run with zero external test dependencies (`node:test` and `node:assert/strict`).
+All 18 unit tests run with zero external test dependencies (`node:test` and `node:assert/strict`).
 
 ---
 
