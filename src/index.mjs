@@ -1,8 +1,12 @@
 export { AgentLoop } from './harness/agent-loop.mjs';
+export { SamsudinREPL } from './harness/repl.mjs';
+export { SessionManager } from './harness/session-manager.mjs';
 export { ContextCompactor } from './harness/context-compactor.mjs';
 export { PermissionGate } from './harness/permissions.mjs';
+export { ConfigManager } from './config/config-manager.mjs';
 export { parseToolCallsFromText } from './parser/tool-call-parser.mjs';
 export { dispatchToolCall, TOOL_DEFINITIONS } from './tools/registry.mjs';
+export { getGitStatus, getGitDiff } from './tools/git-tools.mjs';
 export { BaseProvider } from './providers/base-provider.mjs';
 export { OpenAIProvider } from './providers/openai-provider.mjs';
 export { AiFreeProvider } from './providers/aifree-direct.mjs';

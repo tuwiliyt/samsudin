@@ -2,31 +2,39 @@
 
 **Samsudin** is an autonomous AI software engineering agent harness designed to turn free multi-provider models into autonomous coding agents.
 
-It combines the battle-tested **Claude Code agentic loop architecture** (`Perceive -> Reason -> Act -> Observe -> Verify`) with the **Hermes XML tool-calling resilience** and **OpenCode model-agnostic interoperability**.
+It combines the battle-tested **Claude Code agentic loop architecture** (`Perceive -> Reason -> Act -> Observe -> Verify`) with **Hermes XML tool-calling resilience** and **OpenCode model-agnostic interoperability**.
 
 ---
 
 ## Key Features
 
-1. **Deterministic 5-Phase Master Loop**:
+1. **Interactive REPL & One-Off CLI (Like OpenCode / Claude Code)**:
+   - Interactive shell for multi-turn conversational task execution.
+   - Built-in slash commands (`/model`, `/models`, `/compact`, `/clear`, `/tools`, `/stats`, `/git`, `/diff`, `/yolo`, `/exit`).
+2. **Deterministic 5-Phase Master Loop**:
    - Continuous perception, reasoning, tool execution, and verification cycles.
    - Self-correcting: inspects errors autonomously and refines its approach.
-2. **Dual-Mode Resilient Tool Parser**:
-   - Parses **Hermes XML Tags** (`<tool_call><name>...</name><arguments>...</arguments></tool_call>`) and Markdown JSON blocks.
-   - 99%+ execution accuracy on non-frontier and open-weights models (DeepSeek, Qwen 2.5, GLM-4, Hunyuan, Wenxin).
-3. **3-Tier Context Compaction**:
-   - Prunes old terminal outputs and file contents across iterations.
+3. **Dual-Mode Resilient Tool Parser**:
+   - Parses **Hermes XML Tags** (`<tool_call><name>...</name><arguments>...</arguments></tool_call>`), Markdown JSON blocks, and corrupted model outputs with regex fallbacks.
+   - 99%+ execution accuracy on non-frontier and open-weights models (DeepSeek, Qwen 2.5, GLM-4, Hunyuan, Wenxin, InternLM, MiMo).
+4. **3-Tier Context Compaction**:
+   - Prunes old terminal outputs and file dumps across iterations to prevent context exhaustion.
    - Automatically injects persistent rules from `SAMSUDIN.md` or `AGENTS.md`.
-4. **Production Developer Tools**:
+5. **Comprehensive Developer Tools**:
    - `bash`: Shell execution with timeout and output truncation.
    - `view_file`: Paginated line inspection.
    - `write_file`: File creation with directory scaffolding.
    - `replace_file_content`: Precise contiguous block replacement.
    - `grep`: Regex pattern search across the workspace.
    - `glob`: Rapid file path and pattern discovery.
-5. **Multi-Provider Engine Integration**:
-   - Plugs directly into `ai-free` OpenAI-compatible endpoint (`http://127.0.0.1:3000/v1`) or any standard OpenAI API.
+   - `git_status` & `git_diff`: Workspace change inspection.
+6. **Multi-Provider Engine Integration**:
+   - Plugs directly into `ai-free` OpenAI-compatible endpoint (`http://127.0.0.1:4318/v1`) or any standard OpenAI API.
    - Supports 10+ free frontier models: DeepSeek-V3, ERNIE-5.1 (Wenxin), Hunyuan 4, GLM-4-Plus, Qwen 3 Max, Kimi, MiniMax, Xiaomi MiMo, InternLM, and ChatGPT.
+7. **Session Persistence & Governance**:
+   - Automatic session logging in `.samsudin/sessions/`.
+   - Local/Global configuration in `.samsudin/config.json`.
+   - Human-in-the-loop permission gate with dangerous bash command blocking.
 
 ---
 
@@ -35,11 +43,15 @@ It combines the battle-tested **Claude Code agentic loop architecture** (`Percei
 ```
 samsudin/
 ├── bin/
-│   └── samsudin.mjs                # CLI executable
+│   └── samsudin.mjs                # CLI executable (REPL & One-off mode)
 ├── src/
-│   ├── index.mjs                   # Library entry point
+│   ├── index.mjs                   # Library programmatic entry point
+│   ├── config/
+│   │   └── config-manager.mjs      # Configuration manager (.samsudin/config.json)
 │   ├── harness/
 │   │   ├── agent-loop.mjs          # Master agent loop
+│   │   ├── repl.mjs                # Interactive REPL shell & slash commands
+│   │   ├── session-manager.mjs     # Session recording & transcript persistence
 │   │   ├── context-compactor.mjs   # 3-tier context management & sliding window
 │   │   └── permissions.mjs         # Permission gate & security policy
 │   ├── parser/
@@ -51,7 +63,8 @@ samsudin/
 │   │   ├── write-file.mjs          # File creation
 │   │   ├── replace-file.mjs        # Targeted text replacement
 │   │   ├── grep.mjs                # Fast regex search
-│   │   └── glob.mjs                # File discovery
+│   │   ├── glob.mjs                # File discovery
+│   │   └── git-tools.mjs           # Git status & diff inspection
 │   ├── providers/
 │   │   ├── base-provider.mjs       # Abstract provider interface
 │   │   ├── openai-provider.mjs     # OpenAI-compatible HTTP SSE provider
@@ -60,41 +73,53 @@ samsudin/
 │   │   └── system.mjs              # System prompt builder
 │   └── utils/
 │       └── terminal-ui.mjs         # Terminal banners and progress visualizer
-├── test/                           # Full unit test suite
+├── test/                           # 13 unit tests (100% pass)
+├── website/                        # Official Landing Page
 ├── SAMSUDIN.md                     # Agent workspace rules
 └── package.json
 ```
 
 ---
 
-## Installation & Quick Start
+## Quick Start & Usage
 
-### 1. Standalone / Global Link
+### 1. Interactive REPL Mode (Like Claude Code / OpenCode)
+Simply run without arguments:
 ```bash
-cd /content/samsudin
-npm link
+samsudin
+```
+Inside the REPL:
+```
+samsudin (intern-s1) > /help
+samsudin (intern-s1) > /model k1.5
+samsudin (k1.5) > Inspect all failing tests and suggest a patch
+samsudin (k1.5) > /diff
+samsudin (k1.5) > /stats
 ```
 
-### 2. Run with AI-Free Local Server
-Ensure your `ai-free` server is running (e.g. `node /content/ai-free/bin/deepseek.mjs --api`):
+### 2. Autonomous One-Off Task
 ```bash
-# Run task autonomously
+# Run task autonomously with YOLO mode
 samsudin --yolo "Audit package.json, run tests, and fix any broken scripts"
 
-# Run with specific model
-samsudin --model ERINE-5.1 "Refactor database query logic in src/db.mjs"
-
-# Run with Hunyuan
-samsudin --model hy4-preview-g "Analyze project architecture and generate documentation"
+# Run with a specific model
+samsudin --model intern-s1 "Refactor database query logic in src/db.mjs"
+samsudin --model ERINE-5.1 "Analyze project architecture and generate documentation"
 ```
 
-### 3. CLI Flags
-* `-m, --model <name>`: Model identifier (e.g., `deepseek-chat`, `ERINE-5.1`, `hy4-preview-g`, `qwen3-max`).
-* `-u, --api-url <url>`: API endpoint (default: `http://127.0.0.1:3000/v1`).
-* `-y, --yolo`: Auto-approve all tool operations without prompting.
-* `-v, --verbose`: Show full streaming tokens and raw parameters.
-* `-s, --steps <N>`: Maximum iterations before loop exits (default: `25`).
-* `-h, --help`: Display help and options.
+### 3. REPL Slash Commands
+| Command | Description |
+| :--- | :--- |
+| `/model <name>` | Switch active model on the fly without exiting session |
+| `/models` | List all available models from connected backend |
+| `/clear` | Clear message history and start a fresh session |
+| `/compact` | Force context compaction manually |
+| `/tools` | List registered tools and parameter schemas |
+| `/yolo` | Toggle auto-approval of tool execution on/off |
+| `/stats` | View session metrics, tool calls breakdown, and logs |
+| `/git` | Inspect git branch and modified files |
+| `/diff` | View uncommitted git diff in the workspace |
+| `/exit` | Gracefully save and exit REPL session |
 
 ---
 
@@ -104,7 +129,7 @@ Run the built-in Node test suite:
 ```bash
 npm test
 ```
-All tests are implemented using standard Node.js test runner (`node:test` and `node:assert/strict`) with zero external test dependencies.
+All 13 unit tests run with zero external test dependencies (`node:test` and `node:assert/strict`).
 
 ---
 

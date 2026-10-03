@@ -133,6 +133,33 @@ export const TOOL_DEFINITIONS = [
       },
       required: []
     }
+  },
+  {
+    name: 'git_status',
+    description: 'Check the git status of the current workspace, including active branch and modified files.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: []
+    }
+  },
+  {
+    name: 'git_diff',
+    description: 'View uncommitted changes or file diffs using git diff.',
+    parameters: {
+      type: 'object',
+      properties: {
+        filePath: {
+          type: 'string',
+          description: 'Optional file path to limit the diff to a single file.'
+        },
+        staged: {
+          type: 'boolean',
+          description: 'Whether to view staged changes (default false).'
+        }
+      },
+      required: []
+    }
   }
 ];
 
@@ -176,6 +203,18 @@ export async function dispatchToolCall(toolName, args = {}, context = {}) {
         pattern: args.pattern,
         dir: args.dir ? args.dir : cwd
       });
+    case 'git_status': {
+      const { getGitStatus } = await import('./git-tools.mjs');
+      return await getGitStatus({ cwd });
+    }
+    case 'git_diff': {
+      const { getGitDiff } = await import('./git-tools.mjs');
+      return await getGitDiff({
+        filePath: args.filePath,
+        staged: Boolean(args.staged),
+        cwd
+      });
+    }
     default:
       throw new Error(`Unknown tool: ${toolName}. Available tools: ${TOOL_DEFINITIONS.map(t => t.name).join(', ')}`);
   }
