@@ -297,8 +297,9 @@ ${colors.dim}To view all models:${colors.reset} ${colors.cyan}/models${colors.re
 
         const auth = new AuthManager();
         const authStatus = auth.getStatus();
-        const activeCount = Object.values(authStatus).filter(s => s.configured).length;
-        console.log(`  ${activeCount > 0 ? colors.green + '✔' : colors.yellow + '⚠'}${colors.reset} Credentials:       ${activeCount} of ${Object.keys(authStatus).length} providers configured (${auth.credentialsFile})`);
+        const configuredCount = authStatus.providers.filter(p => p.isConfigured).length;
+        const totalCount = authStatus.providers.length;
+        console.log(`  ${configuredCount > 0 ? colors.green + '✔' : colors.yellow + '⚠'}${colors.reset} Credentials:       ${configuredCount} of ${totalCount} providers configured (${auth.credentialsFile})`);
 
         const rulesPath = path.resolve(this.cwd, 'SAMSUDIN.md');
         const rulesExist = fs.existsSync(rulesPath);
