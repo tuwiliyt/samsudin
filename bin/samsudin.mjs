@@ -90,6 +90,9 @@ async function main() {
 Usage:
   samsudin [options] "<prompt/goal>"     Execute a single goal autonomously
   samsudin [options]                    Enter interactive REPL shell (like OpenCode / Claude Code)
+  samsudin auth [provider]              Configure credentials for a specific provider
+  samsudin auth import <file.json>      Import credentials exported by Chrome extension
+  samsudin auth status                  Check status of all connected providers
 
 Options:
   -m, --model <name>      Model identifier (e.g. intern-s1, ERINE-5.1, k1.5, mimo-flash, etc.)
@@ -116,6 +119,13 @@ REPL Slash Commands:
   }
 
   printBanner();
+
+  // Subcommand: samsudin auth ...
+  if (positionals[0] === 'auth') {
+    const { handleAuthCommand } = await import('../src/cli/auth-cli.mjs');
+    await handleAuthCommand(positionals.slice(1), process.cwd());
+    return;
+  }
 
   const configManager = new ConfigManager(process.cwd());
   const cfg = configManager.loadConfig();

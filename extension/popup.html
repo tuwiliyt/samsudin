@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI-Free Credentials Exporter</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-area">
+        <div class="logo-badge">⚡</div>
+        <div class="header-text">
+          <h1>AI-Free Exporter</h1>
+          <p class="subtitle">Session & Cookie Collector</p>
+        </div>
+      </div>
+      <div class="stats-badge" id="statsBadge">
+        <span class="dot"></span>
+        <span id="detectedCount">0/8</span> Terhubung
+      </div>
+    </header>
+
+    <!-- Notification Banner -->
+    <div id="statusBanner" class="status-banner hidden">
+      <span id="bannerIcon">ℹ️</span>
+      <span id="bannerText">Memeriksa kredensial...</span>
+    </div>
+
+    <!-- Main Actions -->
+    <section class="actions-panel">
+      <div class="primary-actions">
+        <button id="btnAutoCollect" class="btn btn-primary" title="Buka tab platform yang belum login & ekstrak token otomatis">
+          <span class="btn-icon">🚀</span> Buka Semua & Ambil Token
+        </button>
+        <button id="btnQuickScan" class="btn btn-secondary" title="Scan cookie dan tab yang saat ini sedang terbuka">
+          <span class="btn-icon">🔄</span> Scan Sesi Sekarang
+        </button>
+      </div>
+
+      <div class="options-row">
+        <label class="checkbox-label" title="Tutup tab yang dibuka otomatis setelah token berhasil diambil">
+          <input type="checkbox" id="chkAutoClose" checked>
+          <span>Tutup tab otomatis setelah diekstrak</span>
+        </label>
+        <label class="checkbox-label" title="Sembunyikan karakter token di layar">
+          <input type="checkbox" id="chkMaskTokens" checked>
+          <span>Sensor token (Privasi)</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Provider Cards -->
+    <section class="providers-section">
+      <div class="section-title">
+        <span>Platform yang Didukung</span>
+        <button id="btnRefresh" class="btn-text">Refresh Data</button>
+      </div>
+
+      <div class="providers-list" id="providersList">
+        <!-- Providers will be rendered dynamically by popup.js -->
+      </div>
+    </section>
+
+    <!-- JSON Preview & Export Section -->
+    <section class="export-section">
+      <div class="section-title">
+        <span>Hasil JSON (credentials.json)</span>
+        <button id="btnTogglePreview" class="btn-text">Sembunyikan</button>
+      </div>
+
+      <div id="previewContainer" class="preview-container">
+        <pre id="jsonPreview"><code>{}</code></pre>
+      </div>
+
+      <div class="export-actions">
+        <button id="btnCopyJson" class="btn btn-export">
+          <span class="btn-icon">📋</span> Salin credentials.json
+        </button>
+        <button id="btnDownloadJson" class="btn btn-export btn-accent">
+          <span class="btn-icon">💾</span> Download credentials.json
+        </button>
+      </div>
+    </section>
+
+    <!-- Footer Guide -->
+    <footer class="footer">
+      <p><strong>Cara Pakai:</strong> Download file <code>credentials.json</code>, letakkan di folder <code>ai-free/</code>, lalu jalankan <code>npm run setup</code> di terminal.</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

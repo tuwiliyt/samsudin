@@ -11,16 +11,18 @@ It combines the battle-tested **Claude Code agentic loop architecture** (`Percei
 1. **Interactive REPL & One-Off CLI (Like OpenCode / Claude Code)**:
    - Interactive shell for multi-turn conversational task execution.
    - Built-in slash commands (`/model`, `/models`, `/compact`, `/clear`, `/tools`, `/stats`, `/git`, `/diff`, `/yolo`, `/exit`).
-2. **Deterministic 5-Phase Master Loop**:
+2. **Modular Provider Isolation (Use Only What You Need)**:
+   - Zero requirement to configure all 10 providers. If you only want **DeepSeek** or only **MiniMax**, you can configure just that single provider!
+3. **Deterministic 5-Phase Master Loop**:
    - Continuous perception, reasoning, tool execution, and verification cycles.
    - Self-correcting: inspects errors autonomously and refines its approach.
-3. **Dual-Mode Resilient Tool Parser**:
+4. **Dual-Mode Resilient Tool Parser**:
    - Parses **Hermes XML Tags** (`<tool_call><name>...</name><arguments>...</arguments></tool_call>`), Markdown JSON blocks, and corrupted model outputs with regex fallbacks.
    - 99%+ execution accuracy on non-frontier and open-weights models (DeepSeek, Qwen 2.5, GLM-4, Hunyuan, Wenxin, InternLM, MiMo).
-4. **3-Tier Context Compaction**:
+5. **3-Tier Context Compaction**:
    - Prunes old terminal outputs and file dumps across iterations to prevent context exhaustion.
    - Automatically injects persistent rules from `SAMSUDIN.md` or `AGENTS.md`.
-5. **Comprehensive Developer Tools**:
+6. **Comprehensive Developer Tools**:
    - `bash`: Shell execution with timeout and output truncation.
    - `view_file`: Paginated line inspection.
    - `write_file`: File creation with directory scaffolding.
@@ -28,13 +30,78 @@ It combines the battle-tested **Claude Code agentic loop architecture** (`Percei
    - `grep`: Regex pattern search across the workspace.
    - `glob`: Rapid file path and pattern discovery.
    - `git_status` & `git_diff`: Workspace change inspection.
-6. **Multi-Provider Engine Integration**:
+7. **Multi-Provider Engine Integration**:
    - Plugs directly into `ai-free` OpenAI-compatible endpoint (`http://127.0.0.1:4318/v1`) or any standard OpenAI API.
-   - Supports 10+ free frontier models: DeepSeek-V3, ERNIE-5.1 (Wenxin), Hunyuan 4, GLM-4-Plus, Qwen 3 Max, Kimi, MiniMax, Xiaomi MiMo, InternLM, and ChatGPT.
-7. **Session Persistence & Governance**:
-   - Automatic session logging in `.samsudin/sessions/`.
-   - Local/Global configuration in `.samsudin/config.json`.
-   - Human-in-the-loop permission gate with dangerous bash command blocking.
+   - Supports 10 free frontier models: DeepSeek-V3, ERNIE-5.1 (Wenxin), Hunyuan 4, GLM-4-Plus, Qwen 3 Max, Kimi, MiniMax, Xiaomi MiMo, InternLM, and ChatGPT.
+
+---
+
+## Provider Authentication & Credential Setup
+
+Samsudin is built with **modular authentication**. You can configure a single provider or multiple providers, depending on your needs.
+
+### 🔍 Check Credential Status
+View the connection status of all providers at any time:
+```bash
+samsudin auth status
+```
+
+---
+
+### Method 1: Interactive CLI Wizard / 10-Second Browser Console (Zero Install)
+You don't need to install any extension. You can connect a single provider directly via the terminal:
+
+```bash
+# To configure DeepSeek only:
+samsudin auth deepseek
+
+# To configure MiniMax only:
+samsudin auth minimax
+
+# To configure Kimi only:
+samsudin auth kimi
+```
+
+**How it works:**
+1. Open the provider's web chat in your browser (e.g., https://chat.deepseek.com or https://agent.minimaxi.com).
+2. Press **F12** $\to$ switch to the **Console** tab.
+3. Paste the 1-liner snippet displayed by Samsudin into your browser console and press **Enter** (it copies the token to your clipboard).
+4. Paste the token back into the terminal prompt. Samsudin validates and saves it locally in `~/.samsudin/credentials.json` with permissions `600`.
+
+---
+
+### Method 2: One-Click Chrome Extension Import (Bulk or Selective)
+For the most convenient setup across multiple accounts, Samsudin includes a built-in Chrome Extension in the [`extension/`](./extension) folder.
+
+1. Open Chrome and navigate to `chrome://extensions/`.
+2. Toggle on **Developer mode** (top right).
+3. Click **Load unpacked** and select the [`samsudin/extension`](./extension) directory.
+4. Open the extension popup, check only the providers you want to export (e.g. check only DeepSeek or MiniMax), and click **Export Selected Credentials**.
+5. Save `credentials.json` and import it into Samsudin:
+   ```bash
+   samsudin auth import /path/to/credentials.json
+   ```
+
+---
+
+### Method 3: Official API Key (If You Have One)
+If you already possess a standard API key from DeepSeek, MiniMax, or OpenRouter:
+```bash
+export OPENAI_API_KEY="sk-..."
+# or run with explicit key:
+samsudin --api-key "sk-..." "Your coding goal"
+```
+
+---
+
+### Switching Active Provider
+If you have multiple providers configured, switch the default active provider instantly:
+```bash
+samsudin auth switch deepseek
+# or switch to MiniMax:
+samsudin auth switch minimax
+```
+Or switch models on the fly inside the REPL with `/model <name>`.
 
 ---
 
@@ -43,13 +110,22 @@ It combines the battle-tested **Claude Code agentic loop architecture** (`Percei
 ```
 samsudin/
 ├── bin/
-│   └── samsudin.mjs                # CLI executable (REPL & One-off mode)
+│   └── samsudin.mjs                # CLI executable (REPL, One-off, & Auth subcommands)
+├── extension/                      # Chrome Extension for 1-click credential extraction
+│   ├── manifest.json
+│   ├── popup.html, popup.js, popup.css
+│   └── icons/
 ├── src/
 │   ├── index.mjs                   # Library programmatic entry point
+│   ├── auth/
+│   │   ├── auth-manager.mjs        # Modular credential manager (~/.samsudin/credentials.json)
+│   │   └── provider-snippets.mjs   # 1-liner browser console snippets & provider URLs
+│   ├── cli/
+│   │   └── auth-cli.mjs            # CLI handlers for samsudin auth commands
 │   ├── config/
 │   │   └── config-manager.mjs      # Configuration manager (.samsudin/config.json)
 │   ├── harness/
-│   │   ├── agent-loop.mjs          # Master agent loop
+│   │   ├── agent-loop.mjs          # Master agent loop (Perceive -> Reason -> Act -> Verify)
 │   │   ├── repl.mjs                # Interactive REPL shell & slash commands
 │   │   ├── session-manager.mjs     # Session recording & transcript persistence
 │   │   ├── context-compactor.mjs   # 3-tier context management & sliding window
@@ -73,7 +149,7 @@ samsudin/
 │   │   └── system.mjs              # System prompt builder
 │   └── utils/
 │       └── terminal-ui.mjs         # Terminal banners and progress visualizer
-├── test/                           # 13 unit tests (100% pass)
+├── test/                           # 16 unit tests (100% pass)
 ├── website/                        # Official Landing Page
 ├── SAMSUDIN.md                     # Agent workspace rules
 └── package.json
@@ -129,7 +205,7 @@ Run the built-in Node test suite:
 ```bash
 npm test
 ```
-All 13 unit tests run with zero external test dependencies (`node:test` and `node:assert/strict`).
+All 16 unit tests run with zero external test dependencies (`node:test` and `node:assert/strict`).
 
 ---
 
